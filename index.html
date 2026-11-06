@@ -193,6 +193,7 @@ function lowerGamma(s,x){
   return 1-h*Math.exp(-x+s*Math.log(x)-lgamma(s));
 }
 const chiSqCDF = (x,df) => x<=0?0:lowerGamma(df/2,x/2)/Math.exp(lgamma(df/2));
+const chiSqPDF = (x,df) => x<=0?0:Math.exp((df/2-1)*Math.log(x) - x/2 - lgamma(df/2) - (df/2)*Math.log(2));
 const fCDF = (f,d1,d2) => f<=0?0:incBeta(d1/2,d2/2,(d1*f)/(d1*f+d2));
 function fInv(p,d1,d2){ let lo=0,hi=200; for(let i=0;i<100;i++){const m=(lo+hi)/2; if(fCDF(m,d1,d2)<p)lo=m; else hi=m;} return (lo+hi)/2; }
 
@@ -405,7 +406,7 @@ function runSum1(){
   }
 }
 
-/* ============== summarize2 — single selected variable ============== */
+/* ============== summarize2 ============== */
 function renderSum2(panel){
   const ds = activeData();
   const cols = analyzableCols(ds);
@@ -413,7 +414,6 @@ function renderSum2(panel){
     panel.innerHTML = '<p class="text-xs text-amber-600">No analyzable columns.</p>';
     return;
   }
-
   panel.innerHTML = `
     <h2 class="text-lg font-bold mb-3"><i class="fa-solid fa-table-columns text-brand-600 mr-1"></i> summarize2</h2>
     <label class="text-xs font-semibold">Variable:</label>
@@ -444,12 +444,10 @@ function runSum2(){
     const min = sorted[0], max = sorted[sorted.length - 1];
     const iqr = q3 - q1;
 
-    // Density via Gaussian kernel — draw over a padded range
     const lo = Math.min(min, m - 4*s);
     const hi = Math.max(max, m + 4*s);
     const pad = (hi - lo) * 0.05 || 1;
     const xMin = lo - pad, xMax = hi + pad;
-    // Silverman's rule for bandwidth
     const bw = 1.06 * s * Math.pow(nums.length, -0.2) || (s || 1) * 0.3;
     const xs = [];
     const ys = [];
@@ -513,7 +511,6 @@ function runSum2(){
     return;
   }
 
-  // categorical / bar chart
   const freq = {};
   vals.forEach(v => { freq[v] = (freq[v] || 0) + 1; });
   const labels = Object.keys(freq).sort();
@@ -578,7 +575,7 @@ function renderTTest(panel){
       <div id="ttOpt2Container"></div>
     </div>
     <div id="ttOut" class="mb-3"></div>
-    <div id="ttPlot" style="height:280px"></div>`;
+    <div id="ttPlot" style="height:300px"></div>`;
 
   document.getElementById('ttType').addEventListener('change', () => { buildTTestSecondSelect(); runTTest(); });
   document.getElementById('ttY').addEventListener('change', () => { buildTTestSecondSelect(); runTTest(); });
@@ -597,11 +594,27 @@ function buildTTestSecondSelect(){
 
   if(type === 'one'){
     const prevMu = document.getElementById('ttMu0')?.value ?? '0';
+    const prevAlt = window.__ttAlt ?? 'two';
     container.innerHTML = `
-      <label class="text-xs font-semibold">μ₀:</label>
-      <input type="number" id="ttMu0" value="${prevMu}" step="any"
-             class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">`;
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-xs font-semibold">μ₀:</label>
+          <input type="number" id="ttMu0" value="${prevMu}" step="any"
+                 class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+        </div>
+        <div>
+          <label class="text-xs font-semibold">Alt:</label>
+          <select id="ttAlt" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+            <option value="two"     ${prevAlt==='two'?'selected':''}>two-sided</option>
+            <option value="greater" ${prevAlt==='greater'?'selected':''}>greater</option>
+            <option value="less"    ${prevAlt==='less'?'selected':''}>less</option>
+          </select>
+        </div>
+      </div>`;
     document.getElementById('ttMu0').addEventListener('input', runTTest);
+    const altSel = document.getElementById('ttAlt');
+    window.__ttAlt = altSel.value;
+    altSel.addEventListener('change', () => { window.__ttAlt = altSel.value; runTTest(); });
     return;
   }
 
@@ -612,18 +625,33 @@ function buildTTestSecondSelect(){
     }
     const prev = window.__ttGrp;
     const def = (prev && binaryCats.includes(prev)) ? prev : binaryCats[0];
+    const prevAltTwo = window.__ttAltTwo ?? 'two';
     container.innerHTML = `
-      <label class="text-xs font-semibold">Group:</label>
-      <select id="ttGrp" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
-        ${binaryCats.map(c => `<option value="${c}" ${c===def?'selected':''}>${c}</option>`).join('')}
-      </select>`;
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-xs font-semibold">Group:</label>
+          <select id="ttGrp" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+            ${binaryCats.map(c => `<option value="${c}" ${c===def?'selected':''}>${c}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold">Alt:</label>
+          <select id="ttAltTwo" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+            <option value="two"     ${prevAltTwo==='two'?'selected':''}>two-sided</option>
+            <option value="greater" ${prevAltTwo==='greater'?'selected':''}>greater</option>
+            <option value="less"    ${prevAltTwo==='less'?'selected':''}>less</option>
+          </select>
+        </div>
+      </div>`;
     const sel = document.getElementById('ttGrp');
     window.__ttGrp = sel.value;
     sel.addEventListener('change', () => { window.__ttGrp = sel.value; runTTest(); });
+    const altSel = document.getElementById('ttAltTwo');
+    window.__ttAltTwo = altSel.value;
+    altSel.addEventListener('change', () => { window.__ttAltTwo = altSel.value; runTTest(); });
     return;
   }
 
-  // paired
   const others = nums.filter(c => c !== y);
   if(others.length === 0){
     container.innerHTML = `<p class="text-[11px] text-amber-600">Paired test needs a second numeric column.</p>`;
@@ -647,38 +675,93 @@ function runTTest(){
   const y = document.getElementById('ttY').value;
   const out = document.getElementById('ttOut');
 
+  // --- Self-healing guard: ensure the second-select row matches the current Type ---
+  if(type === 'one' && !document.getElementById('ttAlt')){
+    buildTTestSecondSelect();
+  } else if(type === 'two' && !document.getElementById('ttGrp')){
+    buildTTestSecondSelect();
+  } else if(type === 'paired' && !document.getElementById('ttY2')){
+    buildTTestSecondSelect();
+  }
+
+  // ============ ONE-SAMPLE ============
   if(type === 'one'){
     const mu0 = parseFloat(document.getElementById('ttMu0')?.value ?? '0') || 0;
+    const alt = document.getElementById('ttAlt')?.value ?? 'two';
     const vals = ds.data.map(r => Number(r[y])).filter(v => !Number.isNaN(v));
     if(vals.length < 2){ out.innerHTML = '<p class="text-xs text-amber-600">Need ≥ 2 numeric obs.</p>'; return; }
     const n = vals.length, m = mean(vals), s = sd(vals);
     const se = s/Math.sqrt(n), t = (m-mu0)/se, df = n-1;
-    const p = 2*(1 - tCDF(Math.abs(t), df));
-    const tc = tInv(.975, df);
+
+    let p;
+    if(alt === 'two')          p = 2*(1 - tCDF(Math.abs(t), df));
+    else if(alt === 'greater') p = 1 - tCDF(t, df);
+    else                       p = tCDF(t, df);
+
+    const tc = (alt === 'two') ? tInv(0.975, df) : tInv(0.95, df);
+    const ciLo = alt === 'greater' ? m - tc*se : -Infinity;
+    const ciHi = alt === 'less'    ? m + tc*se :  Infinity;
+    const ciLabel = alt === 'two' ? '95% CI' : '90% one-sided bound';
+
     out.innerHTML = `
-      <div class="text-xs text-gray-500 mb-2">Y = <span class="mono">${y}</span> · n = ${n} · μ₀ = ${mu0}</div>
+      <div class="text-xs mb-2">
+        <span class="font-semibold text-brand-600">One-sample Student t-test</span>
+        <span class="text-gray-500">· Y = <span class="mono">${y}</span> · n = ${n} · μ₀ = ${mu0} · alt = ${alt}</span>
+      </div>
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">t (df=${df})</div><div class="font-bold mono">${t.toFixed(3)}</div></div>
-        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p</div><div class="font-bold mono ${p<.05?'text-emerald-600':'text-amber-600'}">${p<1e-4?'<0.0001':p.toFixed(4)}</div></div>
-        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">95% CI</div><div class="font-bold mono">[${(m-tc*se).toFixed(2)}, ${(m+tc*se).toFixed(2)}]</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p (${alt})</div><div class="font-bold mono ${p<.05?'text-emerald-600':'text-amber-600'}">${p<1e-4?'<0.0001':p.toFixed(4)}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">${ciLabel}</div><div class="font-bold mono">${alt==='two'
+          ? `[${(m-tc*se).toFixed(2)}, ${(m+tc*se).toFixed(2)}]`
+          : alt==='greater' ? `> ${ciLo.toFixed(2)}` : `< ${ciHi.toFixed(2)}`}</div></div>
         <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Cohen's d</div><div class="font-bold mono">${((m-mu0)/s).toFixed(3)}</div></div>
       </div>`;
+
     const xs = [], ys = [];
-    for(let x = -4; x <= 4; x += 0.05){ xs.push(x); ys.push(tPDF(x, df)); }
-    plot('ttPlot', [
-      {x:xs, y:ys, mode:'lines', name:`t(df=${df})`, line:{color:'#2563eb'}},
-      {x:[t,t], y:[0, tPDF(t,df)], mode:'lines', name:'Observed t', line:{color:'#ef4444', width:3}}
-    ], {title:`Student t (df=${df})`});
+    const loX = -Math.max(4, Math.abs(t) + 1);
+    const hiX =  Math.max(4, Math.abs(t) + 1);
+    for(let x = loX; x <= hiX; x += (hiX - loX)/400){ xs.push(x); ys.push(tPDF(x, df)); }
+
+    const shadeRightX = [], shadeRightY = [];
+    const shadeLeftX  = [], shadeLeftY  = [];
+    for(let i = 0; i < xs.length; i++){
+      const x = xs[i];
+      if(alt === 'two'){
+        if(x >= Math.abs(t)){ shadeRightX.push(x); shadeRightY.push(tPDF(x, df)); }
+        if(x <= -Math.abs(t)){ shadeLeftX.push(x); shadeLeftY.push(tPDF(x, df)); }
+      } else if(alt === 'greater'){
+        if(x >= t){ shadeRightX.push(x); shadeRightY.push(tPDF(x, df)); }
+      } else {
+        if(x <= t){ shadeLeftX.push(x); shadeLeftY.push(tPDF(x, df)); }
+      }
+    }
+
+    const fillStyle = {mode:'lines', fill:'tozeroy',
+      fillcolor:'rgba(239,68,68,0.35)', line:{color:'rgba(239,68,68,0)'}, hoverinfo:'skip'};
+    const pLabel = `p (${alt}) = ${p<1e-4?'<0.0001':p.toFixed(4)}`;
+
+    const traces = [
+      {x:xs, y:ys, mode:'lines', name:`t(df=${df})`, line:{color:'#2563eb'}}
+    ];
+    if(shadeRightX.length) traces.push({...fillStyle, x:shadeRightX, y:shadeRightY, name:pLabel, showlegend:true});
+    if(shadeLeftX.length)  traces.push({...fillStyle, x:shadeLeftX,  y:shadeLeftY,  name:shadeRightX.length ? '' : pLabel, showlegend: !shadeRightX.length});
+    traces.push({
+      x:[t,t], y:[0, tPDF(t,df)], mode:'lines', name:'Observed t', line:{color:'#ef4444', width:3}
+    });
+
+    plot('ttPlot', traces, {title:`Student t (df=${df}) — one-sample · p (${alt}) = ${p<1e-4?'<0.0001':p.toFixed(4)}`});
     return;
   }
 
-  if(type === 'two'){
+  // ============ TWO-SAMPLE (WELCH ONLY — NO STUDENT'S t) ============
+  else if(type === 'two'){
     const grpSel = document.getElementById('ttGrp');
     if(!grpSel){
-      out.innerHTML = '<p class="text-xs text-amber-600">No 2-level group column. Try medical_trials (Group), mtcars_sample (Transmission), exam_scores (PassFail).</p>';
+      out.innerHTML = '<p class="text-xs text-amber-600">No 2-level group column available. Try medical_trials (Group), mtcars_sample (Transmission), exam_scores (PassFail).</p>';
       return;
     }
     const grp = grpSel.value;
+    const alt = document.getElementById('ttAltTwo')?.value ?? 'two';
     if(grp === y){
       out.innerHTML = '<p class="text-xs text-amber-600">Response and Group must be different.</p>';
       return;
@@ -696,60 +779,126 @@ function runTTest(){
     }
     const m1 = mean(g1), m2 = mean(g2), v1 = variance(g1), v2 = variance(g2);
     const n1 = g1.length, n2 = g2.length;
+
+    // *** WELCH'S t ONLY — always unequal variances, always Satterthwaite df ***
     const se = Math.sqrt(v1/n1 + v2/n2);
     const t = (m1 - m2) / se;
     const df = (v1/n1 + v2/n2)**2 / ((v1/n1)**2/(n1-1) + (v2/n2)**2/(n2-1));
-    const p = 2*(1 - tCDF(Math.abs(t), df));
-    const tc = tInv(.975, df);
+
+    // Sanity: Welch df should equal Student df only when variances are exactly equal.
+    const studentDF = n1 + n2 - 2;
+    const variancesEqual = Math.abs(v1 - v2) < 1e-9;
+    const methodNote = variancesEqual
+      ? `Welch (v₁ ≈ v₂ ⇒ df = ${df.toFixed(2)} ≈ n₁+n₂−2 = ${studentDF})`
+      : `Welch (unequal variances, Satterthwaite df)`;
+
+    let p;
+    if(alt === 'two')          p = 2*(1 - tCDF(Math.abs(t), df));
+    else if(alt === 'greater') p = 1 - tCDF(t, df);
+    else                       p = tCDF(t, df);
+
+    const tc = (alt === 'two') ? tInv(0.975, df) : tInv(0.95, df);
     const diff = m1 - m2;
+    const ciLo = alt === 'greater' ? diff - tc*se : -Infinity;
+    const ciHi = alt === 'less'    ? diff + tc*se :  Infinity;
+    const ciLabel = alt === 'two' ? '95% CI diff' : '90% one-sided bound';
     const pooled = Math.sqrt(((n1-1)*v1 + (n2-1)*v2)/(n1+n2-2));
     const d = diff / pooled;
+
     out.innerHTML = `
-      <div class="text-xs text-gray-500 mb-2">
-        Y = <span class="mono">${y}</span> · Group = <span class="mono">${grp}</span>
-        · ${levels[0]} (n=${n1}, mean=${m1.toFixed(2)}) vs ${levels[1]} (n=${n2}, mean=${m2.toFixed(2)})
+      <div class="text-xs mb-2">
+        <span class="font-semibold text-brand-600">Two-sample Welch t-test</span>
+        <span class="text-gray-500">· Y = <span class="mono">${y}</span> · Group = <span class="mono">${grp}</span> · alt = ${alt}</span>
+      </div>
+      <div class="text-[11px] text-gray-500 mb-2">
+        Method: ${methodNote}
+        · ${levels[0]} (n=${n1}, mean=${m1.toFixed(2)}, sd=${Math.sqrt(v1).toFixed(2)})
+        vs ${levels[1]} (n=${n2}, mean=${m2.toFixed(2)}, sd=${Math.sqrt(v2).toFixed(2)})
       </div>
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Diff (${levels[0]} − ${levels[1]})</div><div class="font-bold mono">${diff.toFixed(3)}</div></div>
         <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Welch t (df=${df.toFixed(1)})</div><div class="font-bold mono">${t.toFixed(3)}</div></div>
-        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p</div><div class="font-bold mono ${p<.05?'text-emerald-600':'text-amber-600'}">${p<1e-4?'<0.0001':p.toFixed(4)}</div></div>
-        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">95% CI diff</div><div class="font-bold mono">[${(diff-tc*se).toFixed(3)}, ${(diff+tc*se).toFixed(3)}]</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p (${alt})</div><div class="font-bold mono ${p<.05?'text-emerald-600':'text-amber-600'}">${p<1e-4?'<0.0001':p.toFixed(4)}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">${ciLabel}</div><div class="font-bold mono">${alt==='two'
+          ? `[${(diff-tc*se).toFixed(3)}, ${(diff+tc*se).toFixed(3)}]`
+          : alt==='greater' ? `> ${ciLo.toFixed(3)}` : `< ${ciHi.toFixed(3)}`}</div></div>
       </div>
-      <p class="text-xs text-gray-500 mt-2">Cohen's d = ${d.toFixed(3)}</p>`;
-    plot('ttPlot', [
+      <p class="text-xs text-gray-500 mt-2">Cohen's d (pooled sd) = ${d.toFixed(3)}</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+        <div id="ttPlot" style="height:280px"></div>
+        <div id="ttBox" style="height:280px"></div>
+      </div>`;
+
+    const xs = [], ys = [];
+    const loX = -Math.max(4, Math.abs(t) + 1);
+    const hiX =  Math.max(4, Math.abs(t) + 1);
+    for(let x = loX; x <= hiX; x += (hiX - loX)/400){ xs.push(x); ys.push(tPDF(x, df)); }
+
+    const shadeX = [], shadeY = [];
+    for(let i = 0; i < xs.length; i++){
+      const x = xs[i];
+      let inRegion = false;
+      if(alt === 'two')           inRegion = Math.abs(x) >= Math.abs(t);
+      else if(alt === 'greater')  inRegion = x >= t;
+      else                        inRegion = x <= t;
+      if(inRegion){ shadeX.push(x); shadeY.push(tPDF(x, df)); }
+    }
+    const fillStyle = {mode:'lines', fill:'tozeroy',
+      fillcolor:'rgba(239,68,68,0.35)', line:{color:'rgba(239,68,68,0)'}, hoverinfo:'skip'};
+    const pLabel = `p (${alt}) = ${p<1e-4?'<0.0001':p.toFixed(4)}`;
+
+    const traces = [
+      {x:xs, y:ys, mode:'lines', name:`t(df=${df.toFixed(1)})`, line:{color:'#2563eb'}}
+    ];
+    if(shadeX.length) traces.push({...fillStyle, x:shadeX, y:shadeY, name:pLabel, showlegend:true});
+    traces.push({
+      x:[t,t], y:[0, tPDF(t,df)], mode:'lines', name:'Observed t', line:{color:'#ef4444', width:3}
+    });
+
+    plot('ttPlot', traces, {title:`Welch t (df=${df.toFixed(1)}) — two-sample, unequal variances · p (${alt}) = ${p<1e-4?'<0.0001':p.toFixed(4)}`});
+    plot('ttBox', [
       {y:g1, type:'box', name:String(levels[0]), marker:{color:'#3b82f6'}},
       {y:g2, type:'box', name:String(levels[1]), marker:{color:'#10b981'}}
     ], {title:`${y} by ${grp}`});
     return;
   }
 
-  // paired
-  const y2Sel = document.getElementById('ttY2');
-  if(!y2Sel){
-    out.innerHTML = '<p class="text-xs text-amber-600">Paired test needs a second numeric column.</p>';
+  // ============ PAIRED ============
+  else {
+    const y2Sel = document.getElementById('ttY2');
+    if(!y2Sel){
+      out.innerHTML = '<p class="text-xs text-amber-600">Paired test needs a second numeric column.</p>';
+      return;
+    }
+    const y2 = y2Sel.value;
+    if(y2 === y){
+      out.innerHTML = '<p class="text-xs text-amber-600">Y₁ and Y₂ must be different.</p>';
+      return;
+    }
+    const pairs = ds.data.map(r => [Number(r[y]), Number(r[y2])]).filter(([a,b]) => !Number.isNaN(a) && !Number.isNaN(b));
+    if(pairs.length < 2){ out.innerHTML = '<p class="text-xs text-amber-600">Need ≥ 2 complete pairs.</p>'; return; }
+    const diffs = pairs.map(([a,b]) => a - b);
+    const n = diffs.length, m = mean(diffs), s = sd(diffs);
+    const se = s/Math.sqrt(n), t = m/se, df = n-1;
+    const p = 2*(1 - tCDF(Math.abs(t), df));
+    const tc = tInv(.975, df);
+    out.innerHTML = `
+      <div class="text-xs mb-2">
+        <span class="font-semibold text-brand-600">Paired Student t-test</span>
+        <span class="text-gray-500">· Y₁ = <span class="mono">${y}</span> · Y₂ = <span class="mono">${y2}</span> · n = ${n}</span>
+      </div>
+      <div class="text-[11px] text-gray-500 mb-2">
+        Method: Student's t on paired differences (df = n − 1 = ${df})
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Mean diff</div><div class="font-bold mono">${m.toFixed(3)}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">t (df=${df})</div><div class="font-bold mono">${t.toFixed(3)}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p</div><div class="font-bold mono ${p<.05?'text-emerald-600':'text-amber-600'}">${p<1e-4?'<0.0001':p.toFixed(4)}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">95% CI</div><div class="font-bold mono">[${(m-tc*se).toFixed(3)}, ${(m+tc*se).toFixed(3)}]</div></div>
+      </div>`;
+    plot('ttPlot', [{x:diffs, type:'histogram', marker:{color:'#8b5cf6', line:{color:'#ffffff', width:1}}}], {title:'Paired differences (Student t on diffs)'});
     return;
   }
-  const y2 = y2Sel.value;
-  if(y2 === y){
-    out.innerHTML = '<p class="text-xs text-amber-600">Y₁ and Y₂ must be different.</p>';
-    return;
-  }
-  const pairs = ds.data.map(r => [Number(r[y]), Number(r[y2])]).filter(([a,b]) => !Number.isNaN(a) && !Number.isNaN(b));
-  if(pairs.length < 2){ out.innerHTML = '<p class="text-xs text-amber-600">Need ≥ 2 complete pairs.</p>'; return; }
-  const diffs = pairs.map(([a,b]) => a - b);
-  const n = diffs.length, m = mean(diffs), s = sd(diffs);
-  const se = s/Math.sqrt(n), t = m/se, df = n-1;
-  const p = 2*(1 - tCDF(Math.abs(t), df));
-  const tc = tInv(.975, df);
-  out.innerHTML = `
-    <div class="text-xs text-gray-500 mb-2">Y₁ = <span class="mono">${y}</span> · Y₂ = <span class="mono">${y2}</span> · n = ${n}</div>
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Mean diff</div><div class="font-bold mono">${m.toFixed(3)}</div></div>
-      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">t (df=${df})</div><div class="font-bold mono">${t.toFixed(3)}</div></div>
-      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p</div><div class="font-bold mono ${p<.05?'text-emerald-600':'text-amber-600'}">${p<1e-4?'<0.0001':p.toFixed(4)}</div></div>
-      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">95% CI</div><div class="font-bold mono">[${(m-tc*se).toFixed(3)}, ${(m+tc*se).toFixed(3)}]</div></div>
-    </div>`;
-  plot('ttPlot', [{x:diffs, type:'histogram', marker:{color:'#8b5cf6', line:{color:'#ffffff', width:1}}}], {title:'Paired differences'});
 }
 
 /* ============== z_test ============== */
@@ -766,7 +915,7 @@ function renderZTest(panel){
         </select></div>
     </div>
     <div id="zOut"></div>
-    <div id="zPlot" style="height:260px" class="mt-3"></div>`;
+    <div id="zPlot" style="height:300px" class="mt-3"></div>`;
   runZTest();
 }
 function runZTest(){
@@ -790,12 +939,39 @@ function runZTest(){
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p (${alt})</div><div class="font-bold mono ${p<.05?'text-emerald-600':'text-amber-600'}">${p<1e-4?'<0.0001':p.toFixed(4)}</div></div>
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">95% CI</div><div class="font-bold mono">[${ci[0].toFixed(3)}, ${ci[1].toFixed(3)}]</div></div>
     </div>`;
+
   const xs = [], ys = [];
-  for(let v = -4; v <= 4; v += 0.1){ xs.push(v); ys.push(normPDF(v)); }
-  plot('zPlot',[
-    {x:xs,y:ys,mode:'lines',name:'N(0,1)',line:{color:'#2563eb'}},
-    {x:[z,z],y:[0,normPDF(z)],mode:'lines',name:'z',line:{color:'#ef4444',width:3}}
-  ],{title:'Standard normal & observed z'});
+  for(let v = -4; v <= 4; v += 0.02){ xs.push(v); ys.push(normPDF(v)); }
+
+  const shade = testFn => {
+    const sx = [], sy = [];
+    for(let i=0;i<xs.length;i++) if(testFn(xs[i])){ sx.push(xs[i]); sy.push(normPDF(xs[i])); }
+    return {x:sx, y:sy};
+  };
+  const fillStyle = {mode:'lines', fill:'tozeroy',
+    fillcolor:'rgba(239,68,68,0.35)', line:{color:'rgba(239,68,68,0)'}, hoverinfo:'skip'};
+  const pLabel = `p (${alt}) = ${p<1e-4?'<0.0001':p.toFixed(4)}`;
+
+  const traces = [
+    {x:xs, y:ys, mode:'lines', name:'N(0,1)', line:{color:'#2563eb'}}
+  ];
+  if(alt === 'two'){
+    const L = shade(x => x <= -Math.abs(z));
+    const R = shade(x => x >=  Math.abs(z));
+    if(L.x.length) traces.push({...fillStyle, x:L.x, y:L.y, name:pLabel, showlegend:true});
+    if(R.x.length) traces.push({...fillStyle, x:R.x, y:R.y, name:'', showlegend:false});
+  } else if(alt === 'greater'){
+    const R = shade(x => x >= z);
+    if(R.x.length) traces.push({...fillStyle, x:R.x, y:R.y, name:pLabel, showlegend:true});
+  } else {
+    const L = shade(x => x <= z);
+    if(L.x.length) traces.push({...fillStyle, x:L.x, y:L.y, name:pLabel, showlegend:true});
+  }
+  traces.push({
+    x:[z,z], y:[0,normPDF(z)], mode:'lines', name:'Observed z', line:{color:'#ef4444',width:3}
+  });
+
+  plot('zPlot', traces, {title:`Standard normal — p (${alt}) = ${p<1e-4?'<0.0001':p.toFixed(4)}`});
 }
 
 /* ============== chisq ============== */
@@ -820,8 +996,7 @@ function renderChisq(panel){
           ${cats.map(c=>`<option value="${c}" ${c===colDefault?'selected':''}>${c}</option>`).join('')}
         </select></div>
     </div>
-    <div id="chOut"></div>
-    <div id="chPlot" style="height:300px" class="mt-3"></div>`;
+    <div id="chOut"></div>`;
   runChisq();
 }
 function runChisq(){
@@ -835,25 +1010,62 @@ function runChisq(){
   rl.forEach(r => { obs[r] = {}; cl.forEach(c => obs[r][c] = 0); rowSum[r] = 0; });
   cl.forEach(c => colSum[c] = 0);
   ds.data.forEach(r => { obs[r[rv]][r[cv]]++; rowSum[r[rv]]++; colSum[r[cv]]++; });
-  let chi = 0; const resid = [];
+  let chi = 0;
   rl.forEach(r => {
-    const row = [];
     cl.forEach(c => {
       const e = rowSum[r]*colSum[c]/N;
       chi += ((obs[r][c]-e)**2)/e;
-      row.push((obs[r][c]-e)/Math.sqrt(e));
     });
-    resid.push(row);
   });
   const df = (rl.length-1)*(cl.length-1);
   const p = df > 0 ? 1 - chiSqCDF(chi, df) : NaN;
+
   document.getElementById('chOut').innerHTML = `
     <div class="grid grid-cols-3 gap-3">
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">χ²</div><div class="font-bold mono">${chi.toFixed(3)}</div></div>
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">df</div><div class="font-bold mono">${df}</div></div>
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p</div><div class="font-bold mono ${p<.05?'text-emerald-600':'text-amber-600'}">${isNaN(p)?'—':(p<1e-4?'<0.0001':p.toFixed(4))}</div></div>
-    </div>`;
-  plot('chPlot',[{z:resid,x:cl,y:rl,type:'heatmap',colorscale:'RdBu'}],{title:'Pearson residuals'});
+    </div>
+    <div id="chDensity" style="height:340px" class="mt-3"></div>`;
+
+  if(df > 0 && isFinite(chi)){
+    const q999 = (() => {
+      let lo = 0, hi = Math.max(chi * 2, df * 6, 50);
+      for(let i=0;i<80;i++){ const mid=(lo+hi)/2; if(chiSqCDF(mid,df) < 0.999) lo=mid; else hi=mid; }
+      return (lo+hi)/2;
+    })();
+    const xMax = Math.max(chi * 1.15, q999);
+    const steps = 250;
+    const xs = [], ys = [];
+    for(let i=0;i<=steps;i++){
+      const x = xMax * i / steps;
+      xs.push(x);
+      ys.push(chiSqPDF(x, df));
+    }
+    const shadeX = [], shadeY = [];
+    for(let i=0;i<xs.length;i++){
+      if(xs[i] >= chi){ shadeX.push(xs[i]); shadeY.push(ys[i]); }
+    }
+
+    const traces = [
+      {x:xs, y:ys, mode:'lines', name:`χ²(df=${df})`, line:{color:'#2563eb'}}
+    ];
+    if(shadeX.length) traces.push({
+      x: shadeX, y: shadeY, mode:'lines', name:`p = ${p<1e-4?'<0.0001':p.toFixed(4)}`,
+      fill:'tozeroy', fillcolor:'rgba(239,68,68,0.35)',
+      line:{color:'rgba(239,68,68,0)'}, hoverinfo:'skip'
+    });
+    traces.push({
+      x:[chi,chi], y:[0, chiSqPDF(chi,df)], mode:'lines', name:`Observed χ² = ${chi.toFixed(3)}`,
+      line:{color:'#ef4444', width:3}
+    });
+
+    plot('chDensity', traces, {
+      title:`χ² distribution (df=${df}) — shaded p-value = ${p<1e-4?'<0.0001':p.toFixed(4)}`,
+      xaxis:{title:'χ²'},
+      yaxis:{title:'Density'}
+    });
+  }
 }
 
 /* ============== f_test (ANOVA) ============== */
@@ -1649,7 +1861,7 @@ function runSim(){
     const lo = m-4*s, hi = m+4*s;
     for(let x=lo; x<=hi; x+=(hi-lo)/150){ xs.push(x); ys.push(reps*(hi-lo)/150 * normPDF((x-m)/s)/s); }
     trace = [
-      {x:means, type:'histogram', histnorm:'probability density', name:'Sample means', marker:{color:'#3b82f6'}},
+      {x:means, type:'histogram', histnorm:'probability density', name:'Sample means', marker:{color:'#3b82f6', line:{color:'#ffffff', width:1}}},
       {x:xs, y:ys, mode:'lines', name:'N(m, s²)', line:{color:'#ef4444'}}
     ];
     title = `CLT — sample means (${dist}, n=${n})`;
@@ -1669,7 +1881,7 @@ function runSim(){
     const lo = m-4*s, hi = m+4*s;
     for(let x=lo; x<=hi; x+=(hi-lo)/150){ xs.push(x); ys.push(reps*(hi-lo)/150*normPDF((x-m)/s)/s); }
     trace = [
-      {x:props, type:'histogram', histnorm:'probability density', name:'p̂', marker:{color:'#10b981'}},
+      {x:props, type:'histogram', histnorm:'probability density', name:'p̂', marker:{color:'#10b981', line:{color:'#ffffff', width:1}}},
       {x:xs, y:ys, mode:'lines', name:'Normal approx', line:{color:'#ef4444'}}
     ];
     title = `CLT — sample proportions (n=${n})`;
