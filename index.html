@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StatsLab Pro</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{ brand:{
+  50:'#eff6ff',100:'#dbeafe',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8',800:'#1e40af',900:'#1e3a8a' }}}}};
+</script>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400&display=swap');
+  body { font-family:'Inter',sans-serif; }
+  code,pre,.mono { font-family:'Fira Code',monospace; }
+  .nav-btn.tab-active { border-bottom:2px solid #2563eb; color:#2563eb; font-weight:600; }
+  .dark .nav-btn.tab-active { border-bottom-color:#60a5fa; color:#60a5fa; }
+  .tool-btn.active { background:#eff6ff; color:#2563eb; font-weight:600; }
+  .dark .tool-btn.active { background:rgba(30,64,175,.3); color:#60a5fa; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
+
+<header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
+    <div class="flex items-center gap-3">
+      <div class="bg-brand-600 text-white p-2 rounded-lg w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-square-root-variable"></i></div>
+      <span class="text-xl font-bold">StatsLab <span class="text-brand-600">PRO</span></span>
+    </div>
+    <nav class="hidden md:flex gap-4 text-sm font-medium">
+      <button onclick="switchTab('datasets')" id="nav-datasets" class="nav-btn tab-active py-5 px-1 border-b-2">Data Hub</button>
+      <button onclick="switchTab('toolkit')"  id="nav-toolkit"  class="nav-btn text-gray-500 py-5 px-1 border-b-2 border-transparent">Toolkit</button>
+      <button onclick="switchTab('custom')"   id="nav-custom"   class="nav-btn text-gray-500 py-5 px-1 border-b-2 border-transparent">Upload</button>
+    </nav>
+    <button onclick="document.documentElement.classList.toggle('dark')" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+      <i class="fa-solid fa-moon dark:hidden"></i><i class="fa-solid fa-sun hidden dark:block text-amber-400"></i>
+    </button>
+  </div>
+</header>
+
+<main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+  <section id="section-datasets" class="tab-content block">
+    <h1 class="text-2xl font-bold mb-4">Data Hub</h1>
+    <div id="datasetGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-6"></div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <div>
+          <h2 class="font-bold" id="dsTitle"></h2>
+          <p class="text-xs text-gray-500 mt-1" id="dsDesc"></p>
+        </div>
+        <button onclick="sendToToolkit()" class="px-3 py-1.5 text-xs bg-brand-600 text-white rounded-lg">Send to Toolkit</button>
+      </div>
+      <div class="overflow-x-auto max-h-96"><table class="min-w-full text-sm"><thead id="dsHead" class="bg-gray-100 dark:bg-gray-700/50 sticky top-0"></thead><tbody id="dsBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <section id="section-toolkit" class="tab-content hidden">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <aside class="lg:col-span-1">
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 sticky top-20">
+          <h3 class="text-xs font-semibold text-gray-400 uppercase mb-3">Functions</h3>
+          <div class="space-y-1 text-sm font-medium" id="toolkitNav"></div>
+        </div>
+      </aside>
+      <div class="lg:col-span-3">
+        <div id="toolPanel" class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 min-h-[600px]"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="section-custom" class="tab-content hidden">
+    <h1 class="text-2xl font-bold mb-4">Upload Custom CSV</h1>
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border-2 border-dashed border-gray-300 text-center cursor-pointer max-w-md" onclick="document.getElementById('csvInput').click()">
+      <i class="fa-solid fa-file-csv text-4xl text-brand-500 mb-2 block"></i>
+      <p>Click to select a CSV file</p>
+      <input type="file" id="csvInput" accept=".csv" class="hidden" onchange="handleCsv(event)">
+    </div>
+    <div id="csvPreview" class="mt-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hidden">
+      <div class="p-3 border-b flex justify-between"><span id="csvTitle" class="font-bold"></span><button onclick="sendToToolkit()" class="px-3 py-1 text-xs bg-brand-600 text-white rounded">Analyze</button></div>
+      <div class="overflow-x-auto max-h-72"><table class="min-w-full text-xs"><thead id="csvHead" class="bg-gray-100 dark:bg-gray-700/50"></thead><tbody id="csvBody"></tbody></table></div>
+    </div>
+  </section>
+</main>
+
+<footer class="py-3 text-center text-xs text-gray-500 border-t border-gray-200 dark:border-gray-700">StatsLab Pro — HTML/JS Edition</footer>
+
+<script>
+/* ============== DATASETS ============== */
+const DATASETS = {
+  iris_sample: { title:'iris_sample', desc:'Iris measurements.', columns:['SampleID','SepalLength','SepalWidth','PetalLength','PetalWidth','Species'],
+    data: Array.from({length:75},(_,i)=>{const sp=i<25?'setosa':i<50?'versicolor':'virginica';
+      const b=sp==='setosa'?[5.0,3.4,1.5,0.2]:sp==='versicolor'?[5.9,2.7,4.2,1.3]:[6.5,3.0,5.5,2.0];
+      return {SampleID:i+1,SepalLength:+(b[0]+(Math.random()*.8-.4)).toFixed(1),SepalWidth:+(b[1]+(Math.random()*.6-.3)).toFixed(1),
+              PetalLength:+(b[2]+(Math.random()*.8-.4)).toFixed(1),PetalWidth:+(b[3]+(Math.random()*.4-.2)).toFixed(1),Species:sp};})},
+  mtcars_sample: { title:'mtcars_sample', desc:'Fuel consumption.', columns:['CarName','MPG','Cylinders','Horsepower','Weight_1000lbs','Transmission'],
+    data:[['Mazda RX4',21,6,110,2.62,'Manual'],['Datsun 710',22.8,4,93,2.32,'Manual'],['Hornet 4 Drive',21.4,6,110,3.215,'Automatic'],
+          ['Hornet Sportabout',18.7,8,175,3.44,'Automatic'],['Valiant',18.1,6,105,3.46,'Automatic'],['Duster 360',14.3,8,245,3.57,'Automatic'],
+          ['Merc 240D',24.4,4,62,3.19,'Automatic'],['Cadillac Fleetwood',10.4,8,205,5.25,'Automatic'],['Fiat 128',32.4,4,66,2.20,'Manual'],
+          ['Honda Civic',30.4,4,52,1.615,'Manual'],['Toyota Corolla',33.9,4,65,1.835,'Manual'],['Camaro Z28',13.3,8,245,3.84,'Automatic'],
+          ['Porsche 914-2',26,4,91,2.14,'Manual'],['Lotus Europa',30.4,4,113,1.513,'Manual'],['Volvo 142E',21.4,4,109,2.78,'Manual']
+        ].map(a=>({CarName:a[0],MPG:a[1],Cylinders:a[2],Horsepower:a[3],Weight_1000lbs:a[4],Transmission:a[5]}))},
+  exam_scores: { title:'exam_scores', desc:'Pre/post tests.', columns:['StudentID','PreTest','PostTest','StudyHours','PassFail','Major'],
+    data: Array.from({length:60},(_,i)=>{const h=+(Math.random()*12+2).toFixed(1);const pre=Math.round(45+Math.random()*25);
+      const post=Math.min(100,Math.round(pre+h*2.5+(Math.random()*10-5)));
+      const major = ['STEM','Business','Humanities'][Math.floor(Math.random()*3)];
+      const pass = post>=70?'Pass':'Fail';
+      return {StudentID:1001+i,PreTest:pre,PostTest:post,StudyHours:h,PassFail:pass,Major:major};})},
+  housing_prices: { title:'housing_prices', desc:'Real estate.', columns:['Price_USD','SqFt','Bedrooms','LocationRating','Age_Years'],
+    data: Array.from({length:80},()=>{const sqft=Math.round(1100+Math.random()*2200);const beds=Math.min(5,Math.max(2,Math.floor(sqft/600)));
+      const rating=Math.floor(Math.random()*5)+1;
+      return {Price_USD:Math.round(sqft*160+rating*25000+beds*12000+(Math.random()*30000-15000)),SqFt:sqft,Bedrooms:beds,LocationRating:rating,Age_Years:Math.floor(Math.random()*40)+1};})},
+  medical_trials: { title:'medical_trials', desc:'BP treatment vs placebo.', columns:['PatientID','Group','PreBP','PostBP','Outcome'],
+    data: Array.from({length:50},(_,i)=>{const g=i%2===0?'Treatment':'Placebo';const pre=Math.round(138+Math.random()*20);
+      const drop=g==='Treatment'?Math.round(12+Math.random()*10):Math.round(Math.random()*6-3);
+      return {PatientID:'P-'+(201+i),Group:g,PreBP:pre,PostBP:pre-drop,Outcome:drop>=8?'Improved':'Unchanged'};})},
+  quality_parts: { title:'quality_parts', desc:'SPC subgroups.', columns:['Subgroup','Sub1','Sub2','Sub3','Sub4','Sub5','DefectCount','BatchSize'],
+    data: Array.from({length:25},(_,i)=>{const base=25+(i===14?.45:(Math.random()*.2-.1));const g=()=>+(base+(Math.random()*.1-.05)).toFixed(3);
+      return {Subgroup:i+1,Sub1:g(),Sub2:g(),Sub3:g(),Sub4:g(),Sub5:g(),DefectCount:Math.floor(Math.random()*6),BatchSize:100};})},
+  customer_churn: { title:'customer_churn', desc:'Telecom churn.', columns:['CustomerID','Tenure_Months','MonthlyCharge','TechSupport','ChurnStatus'],
+    data: Array.from({length:100},(_,i)=>{const t=Math.floor(Math.random()*60)+1;const c=+(45+Math.random()*65).toFixed(2);
+      const ch=(c>75&&t<15)||Math.random()<.25?1:0;
+      return {CustomerID:'C-'+(500+i),Tenure_Months:t,MonthlyCharge:c,TechSupport:Math.random()<.5?'Yes':'No',ChurnStatus:ch};})},
+  dice_flips: { title:'dice_flips', desc:'Coin/die.', columns:['TrialID','CoinOutcome','DieRoll','IsEvenRoll'],
+    data: Array.from({length:120},(_,i)=>{const d=Math.floor(Math.random()*6)+1;
+      return {TrialID:i+1,CoinOutcome:Math.random()>.5?'Heads':'Tails',DieRoll:d,IsEvenRoll:d%2===0?'Yes':'No'};})},
+  survey_satisfaction: { title:'survey_satisfaction', desc:'Satisfaction by type.', columns:['RespondentID','CustomerType','RatingCategory','ServiceScore'],
+    data: Array.from({length:90},(_,i)=>({RespondentID:i+1,
+      CustomerType:['Enterprise','SMB','Consumer'][Math.floor(Math.random()*3)],
+      RatingCategory:['Satisfied','Neutral','Dissatisfied'][Math.floor(Math.random()*3)],
+      ServiceScore:Math.round(55+Math.random()*40)}))},
+  factory_yield: { title:'factory_yield', desc:'Industrial yield.', columns:['RunID','Temperature_C','Pressure_psi','CatalystType','YieldRate_Pct'],
+    data: Array.from({length:50},(_,i)=>{const t=Math.round(150+Math.random()*50);const p=Math.round(30+Math.random()*20);
+      const c=['CatA','CatB'][i%2];
+      return {RunID:i+1,Temperature_C:t,Pressure_psi:p,CatalystType:c,YieldRate_Pct:+(40+.2*t+.5*p+(c==='CatB'?5:0)+(Math.random()*6-3)).toFixed(2)};})}
+};
+
+/* ============== STATE ============== */
+let currentKey = 'iris_sample';
+let custom = null;
+const activeData = () => custom || DATASETS[currentKey];
+
+/* ============== MATH ============== */
+function lgamma(x){
+  const c=[0.99999999999980993,676.5203681218851,-1259.1392167224028,771.32342877765313,
+    -176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+  if(x<0.5) return Math.log(Math.PI/Math.sin(Math.PI*x))-lgamma(1-x);
+  x-=1; let a=c[0]; const t=x+7.5;
+  for(let i=1;i<9;i++) a+=c[i]/(x+i);
+  return 0.5*Math.log(2*Math.PI)+(x+0.5)*Math.log(t)-t+Math.log(a);
+}
+function betacf(a,b,x){
+  const EPS=3e-7, FPMIN=1e-30; let qab=a+b,qap=a+1,qam=a-1,c=1,d=1-qab*x/qap;
+  if(Math.abs(d)<FPMIN)d=FPMIN; d=1/d; let h=d;
+  for(let m=1;m<=200;m++){
+    const m2=2*m; let aa=m*(b-m)*x/((qam+m2)*(a+m2));
+    d=1+aa*d; if(Math.abs(d)<FPMIN)d=FPMIN; c=1+aa/c; if(Math.abs(c)<FPMIN)c=FPMIN; d=1/d; h*=d*c;
+    aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));
+    d=1+aa*d; if(Math.abs(d)<FPMIN)d=FPMIN; c=1+aa/c; if(Math.abs(c)<FPMIN)c=FPMIN; d=1/d;
+    const del=d*c; h*=del; if(Math.abs(del-1)<EPS) break;
+  }
+  return h;
+}
+function incBeta(a,b,x){
+  if(x<=0) return 0; if(x>=1) return 1;
+  const bt=Math.exp(lgamma(a+b)-lgamma(a)-lgamma(b)+a*Math.log(x)+b*Math.log(1-x));
+  return x<(a+1)/(a+b+2) ? bt*betacf(a,b,x)/a : 1-bt*betacf(b,a,1-x)/b;
+}
+const normCDF = z => {
+  const t=1/(1+0.2316419*Math.abs(z)); const d=0.3989423*Math.exp(-z*z/2);
+  const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));
+  return z>0?1-p:p;
+};
+const normPDF = x => Math.exp(-x*x/2)/Math.sqrt(2*Math.PI);
+function normInv(p){
+  if(p<=0)return -Infinity; if(p>=1)return Infinity;
+  let lo=-10,hi=10; for(let i=0;i<80;i++){const m=(lo+hi)/2; if(normCDF(m)<p)lo=m; else hi=m;}
+  return (lo+hi)/2;
+}
+const tCDF = (t,df) => { const x=df/(df+t*t), ib=incBeta(df/2,.5,x); return t>0?1-ib/2:ib/2; };
+const tPDF = (t,df) => Math.exp(lgamma((df+1)/2)-lgamma(df/2))/Math.sqrt(df*Math.PI)*Math.pow(1+t*t/df,-(df+1)/2);
+function tInv(p,df){ let lo=-50,hi=50; for(let i=0;i<100;i++){const m=(lo+hi)/2; if(tCDF(m,df)<p)lo=m; else hi=m;} return (lo+hi)/2; }
+function lowerGamma(s,x){
+  if(x<s+1){ let sum=1/s,term=sum; for(let n=1;n<300;n++){term*=x/(s+n); sum+=term; if(Math.abs(term)<1e-10*Math.abs(sum)) break;} return sum*Math.exp(-x+s*Math.log(x)-lgamma(s)); }
+  let b=x+1-s,c=1e30,d=1/b,h=d;
+  for(let i=1;i<300;i++){ const an=-i*(i-s); b+=2; d=an*d+b; if(Math.abs(d)<1e-30)d=1e-30; c=b+an/c; if(Math.abs(c)<1e-30)c=1e-30; d=1/d; const del=d*c; h*=del; if(Math.abs(del-1)<1e-10) break; }
+  return 1-h*Math.exp(-x+s*Math.log(x)-lgamma(s));
+}
+const chiSqCDF = (x,df) => x<=0?0:lowerGamma(df/2,x/2)/Math.exp(lgamma(df/2));
+const fCDF = (f,d1,d2) => f<=0?0:incBeta(d1/2,d2/2,(d1*f)/(d1*f+d2));
+function fInv(p,d1,d2){ let lo=0,hi=200; for(let i=0;i<100;i++){const m=(lo+hi)/2; if(fCDF(m,d1,d2)<p)lo=m; else hi=m;} return (lo+hi)/2; }
+
+const mean = a => a.reduce((s,x)=>s+x,0)/a.length;
+const variance = a => { const m=mean(a); return a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1); };
+const sd = a => Math.sqrt(variance(a));
+const sortN = a => [...a].sort((x,y)=>x-y);
+function quantile(a,q){ const s=sortN(a), pos=(s.length-1)*q, b=Math.floor(pos), r=pos-b;
+  return s[b+1]!==undefined?s[b]+r*(s[b+1]-s[b]):s[b]; }
+
+function matInv(A){
+  const n = A.length;
+  const M = A.map((row, i) => [...row, ...Array.from({length:n},(_,j)=> i===j?1:0)]);
+  for(let i=0;i<n;i++){
+    let p = i;
+    for(let k=i+1;k<n;k++) if(Math.abs(M[k][i]) > Math.abs(M[p][i])) p = k;
+    if(Math.abs(M[p][i]) < 1e-12) return null;
+    [M[i], M[p]] = [M[p], M[i]];
+    const pv = M[i][i];
+    for(let j=0;j<2*n;j++) M[i][j] /= pv;
+    for(let k=0;k<n;k++){
+      if(k===i) continue;
+      const f = M[k][i];
+      for(let j=0;j<2*n;j++) M[k][j] -= f * M[i][j];
+    }
+  }
+  return M.map(row => row.slice(n));
+}
+
+/* ============== COLUMN TYPING + ID DETECTION ============== */
+const ID_NAME_PATTERNS = /^(id|.*_id|.*id|row|row_?number|index|record|.*_no|.*_number|trialid|sampleid|patientid|customerid|studentid|respondentid|runid|subgroup)$/i;
+
+function looksLikeIdColumn(ds, c){
+  if(ID_NAME_PATTERNS.test(c)) return true;
+  const raw = ds.data.map(r => r[c]).filter(v => v !== null && v !== undefined && v !== '');
+  if(!raw.length) return false;
+  if(ds.data.length < 3) return false;
+  const allNum = raw.every(v => !isNaN(Number(v)) && v !== '');
+  if(!allNum) return false;
+  const nums = raw.map(Number);
+  if(!nums.every(v => Number.isInteger(v))) return false;
+  const uniq = new Set(nums);
+  const uniqueRatio = uniq.size / nums.length;
+  const isSequential = nums.every((v,i) => v === i + 1) || nums.every((v,i) => v === i);
+  if(isSequential) return true;
+  if(uniqueRatio >= 0.95 && nums.length >= 10) return true;
+  const min = Math.min(...nums), max = Math.max(...nums);
+  if(uniqueRatio >= 0.95 && (max - min) === nums.length - 1) return true;
+  return false;
+}
+function colType(ds, c){
+  const vals = ds.data.map(r => r[c]).filter(v => v !== null && v !== undefined && v !== '');
+  if(!vals.length) return 'empty';
+  if(looksLikeIdColumn(ds, c)) return 'id';
+  const allNum = vals.every(v => !isNaN(Number(v)) && v !== '');
+  if(!allNum) return 'cat';
+  const uniq = [...new Set(vals.map(Number))];
+  if(uniq.length <= 6 && uniq.every(v => Number.isInteger(v))) return 'cat';
+  return 'num';
+}
+function analyzableCols(ds){ return ds.columns.filter(c => { const t = colType(ds, c); return t === 'num' || t === 'cat'; }); }
+function numCols(ds){ return analyzableCols(ds).filter(c => colType(ds,c) === 'num'); }
+function catCols(ds){ return analyzableCols(ds).filter(c => colType(ds,c) === 'cat'); }
+function binaryCatCols(ds){ return catCols(ds).filter(c => new Set(ds.data.map(r => String(r[c]))).size === 2); }
+
+/* ============== PLOT HELPER ============== */
+function plot(id, data, layout){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const go = () => {
+    Plotly.purge(el);
+    const dark = document.documentElement.classList.contains('dark');
+    Plotly.newPlot(el, data, Object.assign({
+      autosize:true, margin:{t:40,b:40,l:50,r:20},
+      paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+      font:{color: dark?'#e5e7eb':'#111'}
+    }, layout||{}), {displayModeBar:false, responsive:true});
+  };
+  if(el.clientWidth === 0){ requestAnimationFrame(()=>requestAnimationFrame(go)); }
+  else go();
+}
+
+/* ============== NAV / GRID / MENU ============== */
+function switchTab(id){
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+  document.getElementById('section-'+id).classList.remove('hidden');
+  document.querySelectorAll('.nav-btn').forEach(el => {
+    el.classList.remove('tab-active','text-gray-500');
+    if(el.id === 'nav-'+id) el.classList.add('tab-active'); else el.classList.add('text-gray-500');
+  });
+}
+function sendToToolkit(){ switchTab('toolkit'); selectTool('summarize1'); }
+
+function renderGrid(){
+  const g = document.getElementById('datasetGrid'); g.innerHTML='';
+  Object.entries(DATASETS).forEach(([k,ds])=>{
+    const div = document.createElement('div');
+    div.className = 'p-3 rounded-xl border cursor-pointer ' +
+      (k===currentKey ? 'bg-brand-50 border-brand-500 dark:bg-brand-900/30' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-brand-300');
+    div.onclick = () => loadDataset(k);
+    div.innerHTML = `<div class="font-bold text-xs truncate">${ds.title}</div><p class="text-[11px] text-gray-500 mt-1">${ds.desc}</p>`;
+    g.appendChild(div);
+  });
+}
+function loadDataset(k){
+  currentKey = k;
+  const ds = DATASETS[k];
+  renderGrid();
+  document.getElementById('dsTitle').textContent = ds.title + ' (' + ds.data.length + ' rows)';
+  document.getElementById('dsDesc').textContent  = ds.desc;
+  document.getElementById('dsHead').innerHTML = '<tr>' + ds.columns.map(c => `<th class="px-3 py-2 text-left text-xs uppercase">${c}</th>`).join('') + '</tr>';
+  document.getElementById('dsBody').innerHTML = ds.data.slice(0,30).map(r =>
+    '<tr>' + ds.columns.map(c => `<td class="px-3 py-1.5 text-xs mono">${r[c]}</td>`).join('') + '</tr>'
+  ).join('');
+}
+
+const TOOLS = [
+  {key:'summarize1', label:'summarize1', icon:'fa-chart-simple'},
+  {key:'summarize2', label:'summarize2', icon:'fa-table-columns'},
+  {key:'t_test',     label:'t_test',     icon:'fa-code-compare'},
+  {key:'z_test',     label:'z_test',     icon:'fa-percent'},
+  {key:'chisq_test', label:'chisq_test', icon:'fa-table-cells'},
+  {key:'f_test',     label:'f_test',     icon:'fa-layer-group'},
+  {key:'reg',        label:'reg',        icon:'fa-chart-line'},
+  {key:'logistic_reg',label:'logistic_reg',icon:'fa-toggle-on'},
+  {key:'quality',    label:'quality',    icon:'fa-sliders'},
+  {key:'sim',        label:'sim',        icon:'fa-dice'}
+];
+function renderToolMenu(){
+  const nav = document.getElementById('toolkitNav'); nav.innerHTML='';
+  TOOLS.forEach((t,i)=>{
+    const b = document.createElement('button');
+    b.className = 'tool-btn w-full text-left px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700' + (i===0?' active':'');
+    b.innerHTML = `<i class="fa-solid ${t.icon} w-5"></i> ${t.label}`;
+    b.onclick = () => selectTool(t.key, b);
+    nav.appendChild(b);
+  });
+}
+function selectTool(key, btn){
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const panel = document.getElementById('toolPanel');
+  panel.querySelectorAll('.js-plotly-plot').forEach(el => { try{ Plotly.purge(el); }catch(e){} });
+  const fn = {
+    summarize1: renderSum1, summarize2: renderSum2,
+    t_test: renderTTest, z_test: renderZTest,
+    chisq_test: renderChisq, f_test: renderFTest,
+    reg: renderReg, logistic_reg: renderLogistic,
+    quality: renderQuality, sim: renderSim
+  }[key];
+  if(fn) fn(panel);
+}
+
+/* ============== summarize1 ============== */
+function renderSum1(panel){
+  const ds = activeData();
+  const cols = analyzableCols(ds);
+  if(!cols.length){
+    panel.innerHTML = '<p class="text-xs text-amber-600">No analyzable columns.</p>';
+    return;
+  }
+  panel.innerHTML = `
+    <h2 class="text-lg font-bold mb-3"><i class="fa-solid fa-chart-simple text-brand-600 mr-1"></i> summarize1</h2>
+    <label class="text-xs font-semibold">Variable:</label>
+    <select id="s1Col" onchange="runSum1()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600 mt-1">
+      ${cols.map(c=>`<option value="${c}">${c}</option>`).join('')}
+    </select>
+    <p class="text-[11px] text-gray-500 mt-1">ID columns are excluded automatically.</p>
+    <div id="s1Out" class="mt-4"></div>`;
+  runSum1();
+}
+function runSum1(){
+  const ds = activeData();
+  const col = document.getElementById('s1Col').value;
+  const vals = ds.data.map(r => r[col]);
+  const out = document.getElementById('s1Out');
+  const isNum = colType(ds, col) === 'num';
+  if(isNum){
+    const nums = vals.map(Number);
+    const m = mean(nums), s = sd(nums), sorted = sortN(nums);
+    out.innerHTML = `
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Mean ± SD</div><div class="font-bold mono text-brand-600">${m.toFixed(2)} ± ${s.toFixed(2)}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Median (IQR)</div><div class="font-bold mono">${quantile(sorted,.5).toFixed(2)} (${(quantile(sorted,.75)-quantile(sorted,.25)).toFixed(2)})</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Min / Max</div><div class="font-bold mono">${sorted[0]} / ${sorted[sorted.length-1]}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">n</div><div class="font-bold mono">${nums.length}</div></div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div id="s1Hist" style="height:260px"></div>
+        <div id="s1Box" style="height:260px"></div>
+      </div>`;
+    plot('s1Hist',[{x:nums,type:'histogram',marker:{color:'#3b82f6'}}],{title:col});
+    plot('s1Box',[{y:nums,type:'box',marker:{color:'#10b981'}}],{title:col});
+  } else {
+    const freq = {}; vals.forEach(v => freq[v]=(freq[v]||0)+1);
+    const labels = Object.keys(freq);
+    const counts = Object.values(freq);
+    const n = vals.length;
+    out.innerHTML = `
+      <table class="min-w-full text-xs border border-gray-200 dark:border-gray-700 mb-3">
+        <thead class="bg-gray-100 dark:bg-gray-700"><tr><th class="p-2 text-left">Value</th><th class="p-2">Count</th><th class="p-2">%</th></tr></thead>
+        <tbody>${labels.map((l,i)=>`<tr><td class="p-2">${l}</td><td class="p-2 text-center mono">${counts[i]}</td><td class="p-2 text-center mono">${(counts[i]/n*100).toFixed(1)}</td></tr>`).join('')}</tbody>
+      </table>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div id="s1Bar" style="height:260px"></div>
+        <div id="s1Pie" style="height:260px"></div>
+      </div>`;
+    plot('s1Bar',[{x:labels,y:counts,type:'bar',marker:{color:'#6366f1'}}],{title:col});
+    plot('s1Pie',[{labels,values:counts,type:'pie'}],{title:col});
+  }
+}
+
+/* ============== summarize2 — single selected variable ============== */
+function renderSum2(panel){
+  const ds = activeData();
+  const cols = analyzableCols(ds);
+  if(!cols.length){
+    panel.innerHTML = '<p class="text-xs text-amber-600">No analyzable columns.</p>';
+    return;
+  }
+
+  panel.innerHTML = `
+    <h2 class="text-lg font-bold mb-3"><i class="fa-solid fa-table-columns text-brand-600 mr-1"></i> summarize2</h2>
+    <label class="text-xs font-semibold">Variable:</label>
+    <select id="s2Col" onchange="runSum2()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600 mt-1">
+      ${cols.map(c => `<option value="${c}">${c} (${colType(ds,c)})</option>`).join('')}
+    </select>
+    <p class="text-[11px] text-gray-500 mt-1">ID columns are excluded automatically. Plot type is chosen from the variable's type.</p>
+    <div id="s2Out" class="mt-4"></div>`;
+  runSum2();
+}
+
+function runSum2(){
+  const ds = activeData();
+  const col = document.getElementById('s2Col').value;
+  const vals = ds.data.map(r => r[col]);
+  const out = document.getElementById('s2Out');
+  const type = colType(ds, col);
+
+  if(type === 'num'){
+    const nums = vals.map(Number).filter(v => !Number.isNaN(v));
+    if(nums.length < 2){
+      out.innerHTML = '<p class="text-xs text-amber-600">Not enough numeric values.</p>';
+      return;
+    }
+    const m = mean(nums), s = sd(nums);
+    const sorted = sortN(nums);
+    const q1 = quantile(sorted, .25), med = quantile(sorted, .5), q3 = quantile(sorted, .75);
+    const min = sorted[0], max = sorted[sorted.length - 1];
+    const iqr = q3 - q1;
+
+    // Density via Gaussian kernel — draw over a padded range
+    const lo = Math.min(min, m - 4*s);
+    const hi = Math.max(max, m + 4*s);
+    const pad = (hi - lo) * 0.05 || 1;
+    const xMin = lo - pad, xMax = hi + pad;
+    // Silverman's rule for bandwidth
+    const bw = 1.06 * s * Math.pow(nums.length, -0.2) || (s || 1) * 0.3;
+    const xs = [];
+    const ys = [];
+    const steps = 200;
+    for(let i = 0; i <= steps; i++){
+      const x = xMin + (xMax - xMin) * (i / steps);
+      let sum = 0;
+      for(const v of nums){
+        const z = (x - v) / bw;
+        sum += Math.exp(-0.5 * z * z);
+      }
+      const density = sum / (nums.length * bw * Math.sqrt(2 * Math.PI));
+      xs.push(x);
+      ys.push(density);
+    }
+
+    out.innerHTML = `
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-3">
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Mean ± SD</div><div class="font-bold mono text-brand-600">${m.toFixed(2)} ± ${s.toFixed(2)}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Median (IQR)</div><div class="font-bold mono">${med.toFixed(2)} (${iqr.toFixed(2)})</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Q1 / Q3</div><div class="font-bold mono">${q1.toFixed(2)} / ${q3.toFixed(2)}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Min / Max</div><div class="font-bold mono">${min} / ${max}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">n</div><div class="font-bold mono">${nums.length}</div></div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div id="s2Density" style="height:300px"></div>
+        <div id="s2Box" style="height:300px"></div>
+      </div>
+      <p class="text-[11px] text-gray-500 mt-2">
+        Density estimated with a Gaussian kernel (bandwidth ≈ ${bw.toFixed(3)}, Silverman's rule).
+        Vertical dashed line = sample mean; dotted = median.
+      </p>`;
+
+    plot('s2Density', [
+      {x:xs, y:ys, mode:'lines', name:'Density', fill:'tozeroy',
+       line:{color:'#2563eb', width:2}, fillcolor:'rgba(37,99,235,0.15)'},
+      {x:[m, m], y:[0, Math.max(...ys)], mode:'lines', name:'Mean',
+       line:{color:'#ef4444', dash:'dash'}},
+      {x:[med, med], y:[0, Math.max(...ys)], mode:'lines', name:'Median',
+       line:{color:'#10b981', dash:'dot'}}
+    ], {
+      title:`Density of ${col}`,
+      xaxis:{title:col, range:[xMin, xMax]},
+      yaxis:{title:'Density'},
+      showlegend:true
+    });
+
+    plot('s2Box', [{
+      y: nums,
+      type: 'box',
+      name: col,
+      boxmean: true,
+      marker: {color:'#8b5cf6'},
+      jitter: 0.3,
+      pointpos: 0,
+      boxpoints: 'outliers'
+    }], {
+      title:`Boxplot of ${col}`,
+      yaxis:{title:col}
+    });
+    return;
+  }
+
+  // categorical / bar chart
+  const freq = {};
+  vals.forEach(v => { freq[v] = (freq[v] || 0) + 1; });
+  const labels = Object.keys(freq).sort();
+  const counts = labels.map(l => freq[l]);
+  const total = vals.length;
+
+  out.innerHTML = `
+    <table class="min-w-full text-xs border border-gray-200 dark:border-gray-700 mb-3">
+      <thead class="bg-gray-100 dark:bg-gray-700">
+        <tr><th class="p-2 text-left">Value</th><th class="p-2">Count</th><th class="p-2">%</th></tr>
+      </thead>
+      <tbody>
+        ${labels.map((l,i)=>`<tr><td class="p-2">${l}</td><td class="p-2 text-center mono">${counts[i]}</td><td class="p-2 text-center mono">${(counts[i]/total*100).toFixed(1)}</td></tr>`).join('')}
+      </tbody>
+    </table>
+    <div id="s2Bar" style="height:340px"></div>
+    <p class="text-[11px] text-gray-500 mt-2">
+      ${labels.length} level${labels.length===1?'':'s'} · total n = ${total}
+    </p>`;
+
+  plot('s2Bar', [{
+    x: labels,
+    y: counts,
+    type: 'bar',
+    marker: {color:'#6366f1'},
+    text: counts.map(c => `${c} (${(c/total*100).toFixed(1)}%)`),
+    textposition: 'outside'
+  }], {
+    title:`Bar chart of ${col}`,
+    xaxis:{title:col},
+    yaxis:{title:'Count'}
+  });
+}
+
+/* ============== t_test ============== */
+function renderTTest(panel){
+  const ds = activeData();
+  const nums = numCols(ds);
+  const binaryCats = binaryCatCols(ds);
+
+  panel.innerHTML = `
+    <h2 class="text-lg font-bold mb-3"><i class="fa-solid fa-code-compare text-brand-600 mr-1"></i> t_test</h2>
+    <div class="text-xs text-gray-500 mb-3">
+      Numeric: <span class="mono">${nums.join(', ') || '(none)'}</span><br>
+      2-level groups: <span class="mono">${binaryCats.join(', ') || '(none)'}</span>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+      <div>
+        <label class="text-xs font-semibold">Type:</label>
+        <select id="ttType" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+          <option value="one">One-sample</option>
+          <option value="two">Two-sample (Welch)</option>
+          <option value="paired">Paired</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-semibold">Response Y (numeric):</label>
+        <select id="ttY" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+          ${nums.map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select>
+      </div>
+      <div id="ttOpt2Container"></div>
+    </div>
+    <div id="ttOut" class="mb-3"></div>
+    <div id="ttPlot" style="height:280px"></div>`;
+
+  document.getElementById('ttType').addEventListener('change', () => { buildTTestSecondSelect(); runTTest(); });
+  document.getElementById('ttY').addEventListener('change', () => { buildTTestSecondSelect(); runTTest(); });
+
+  buildTTestSecondSelect();
+  runTTest();
+}
+
+function buildTTestSecondSelect(){
+  const ds = activeData();
+  const type = document.getElementById('ttType').value;
+  const y = document.getElementById('ttY').value;
+  const container = document.getElementById('ttOpt2Container');
+  const nums = numCols(ds);
+  const binaryCats = binaryCatCols(ds);
+
+  if(type === 'one'){
+    const prevMu = document.getElementById('ttMu0')?.value ?? '0';
+    container.innerHTML = `
+      <label class="text-xs font-semibold">μ₀:</label>
+      <input type="number" id="ttMu0" value="${prevMu}" step="any"
+             class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">`;
+    document.getElementById('ttMu0').addEventListener('input', runTTest);
+    return;
+  }
+
+  if(type === 'two'){
+    if(binaryCats.length === 0){
+      container.innerHTML = `<p class="text-[11px] text-amber-600">No 2-level group column available.</p>`;
+      return;
+    }
+    const prev = window.__ttGrp;
+    const def = (prev && binaryCats.includes(prev)) ? prev : binaryCats[0];
+    container.innerHTML = `
+      <label class="text-xs font-semibold">Group:</label>
+      <select id="ttGrp" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+        ${binaryCats.map(c => `<option value="${c}" ${c===def?'selected':''}>${c}</option>`).join('')}
+      </select>`;
+    const sel = document.getElementById('ttGrp');
+    window.__ttGrp = sel.value;
+    sel.addEventListener('change', () => { window.__ttGrp = sel.value; runTTest(); });
+    return;
+  }
+
+  // paired
+  const others = nums.filter(c => c !== y);
+  if(others.length === 0){
+    container.innerHTML = `<p class="text-[11px] text-amber-600">Paired test needs a second numeric column.</p>`;
+    return;
+  }
+  const prev = window.__ttY2;
+  const def = (prev && others.includes(prev)) ? prev : others[0];
+  container.innerHTML = `
+    <label class="text-xs font-semibold">Pair Var 2:</label>
+    <select id="ttY2" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+      ${others.map(c => `<option value="${c}" ${c===def?'selected':''}>${c}</option>`).join('')}
+    </select>`;
+  const sel = document.getElementById('ttY2');
+  window.__ttY2 = sel.value;
+  sel.addEventListener('change', () => { window.__ttY2 = sel.value; runTTest(); });
+}
+
+function runTTest(){
+  const ds = activeData();
+  const type = document.getElementById('ttType').value;
+  const y = document.getElementById('ttY').value;
+  const out = document.getElementById('ttOut');
+
+  if(type === 'one'){
+    const mu0 = parseFloat(document.getElementById('ttMu0')?.value ?? '0') || 0;
+    const vals = ds.data.map(r => Number(r[y])).filter(v => !Number.isNaN(v));
+    if(vals.length < 2){ out.innerHTML = '<p class="text-xs text-amber-600">Need ≥ 2 numeric obs.</p>'; return; }
+    const n = vals.length, m = mean(vals), s = sd(vals);
+    const se = s/Math.sqrt(n), t = (m-mu0)/se, df = n-1;
+    const p = 2*(1 - tCDF(Math.abs(t), df));
+    const tc = tInv(.975, df);
+    out.innerHTML = `
+      <div class="text-xs text-gray-500 mb-2">Y = <span class="mono">${y}</span> · n = ${n} · μ₀ = ${mu0}</div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">t (df=${df})</div><div class="font-bold mono">${t.toFixed(3)}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p</div><div class="font-bold mono ${p<.05?'text-emerald-600':'text-amber-600'}">${p<1e-4?'<0.0001':p.toFixed(4)}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">95% CI</div><div class="font-bold mono">[${(m-tc*se).toFixed(2)}, ${(m+tc*se).toFixed(2)}]</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Cohen's d</div><div class="font-bold mono">${((m-mu0)/s).toFixed(3)}</div></div>
+      </div>`;
+    const xs = [], ys = [];
+    for(let x = -4; x <= 4; x += 0.05){ xs.push(x); ys.push(tPDF(x, df)); }
+    plot('ttPlot', [
+      {x:xs, y:ys, mode:'lines', name:`t(df=${df})`, line:{color:'#2563eb'}},
+      {x:[t,t], y:[0, tPDF(t,df)], mode:'lines', name:'Observed t', line:{color:'#ef4444', width:3}}
+    ], {title:`Student t (df=${df})`});
+    return;
+  }
+
+  if(type === 'two'){
+    const grpSel = document.getElementById('ttGrp');
+    if(!grpSel){
+      out.innerHTML = '<p class="text-xs text-amber-600">No 2-level group column. Try medical_trials (Group), mtcars_sample (Transmission), exam_scores (PassFail).</p>';
+      return;
+    }
+    const grp = grpSel.value;
+    if(grp === y){
+      out.innerHTML = '<p class="text-xs text-amber-600">Response and Group must be different.</p>';
+      return;
+    }
+    const levels = [...new Set(ds.data.map(r => String(r[grp])))];
+    if(levels.length !== 2){
+      out.innerHTML = `<p class="text-xs text-amber-600">"${grp}" has ${levels.length} levels, need exactly 2.</p>`;
+      return;
+    }
+    const g1 = ds.data.filter(r => String(r[grp]) === levels[0]).map(r => Number(r[y])).filter(v => !Number.isNaN(v));
+    const g2 = ds.data.filter(r => String(r[grp]) === levels[1]).map(r => Number(r[y])).filter(v => !Number.isNaN(v));
+    if(g1.length < 2 || g2.length < 2){
+      out.innerHTML = `<p class="text-xs text-amber-600">Each group needs ≥ 2 obs. Got ${levels[0]}: ${g1.length}, ${levels[1]}: ${g2.length}.</p>`;
+      return;
+    }
+    const m1 = mean(g1), m2 = mean(g2), v1 = variance(g1), v2 = variance(g2);
+    const n1 = g1.length, n2 = g2.length;
+    const se = Math.sqrt(v1/n1 + v2/n2);
+    const t = (m1 - m2) / se;
+    const df = (v1/n1 + v2/n2)**2 / ((v1/n1)**2/(n1-1) + (v2/n2)**2/(n2-1));
+    const p = 2*(1 - tCDF(Math.abs(t), df));
+    const tc = tInv(.975, df);
+    const diff = m1 - m2;
+    const pooled = Math.sqrt(((n1-1)*v1 + (n2-1)*v2)/(n1+n2-2));
+    const d = diff / pooled;
+    out.innerHTML = `
+      <div class="text-xs text-gray-500 mb-2">
+        Y = <span class="mono">${y}</span> · Group = <span class="mono">${grp}</span>
+        · ${levels[0]} (n=${n1}, mean=${m1.toFixed(2)}) vs ${levels[1]} (n=${n2}, mean=${m2.toFixed(2)})
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Diff (${levels[0]} − ${levels[1]})</div><div class="font-bold mono">${diff.toFixed(3)}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Welch t (df=${df.toFixed(1)})</div><div class="font-bold mono">${t.toFixed(3)}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p</div><div class="font-bold mono ${p<.05?'text-emerald-600':'text-amber-600'}">${p<1e-4?'<0.0001':p.toFixed(4)}</div></div>
+        <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">95% CI diff</div><div class="font-bold mono">[${(diff-tc*se).toFixed(3)}, ${(diff+tc*se).toFixed(3)}]</div></div>
+      </div>
+      <p class="text-xs text-gray-500 mt-2">Cohen's d = ${d.toFixed(3)}</p>`;
+    plot('ttPlot', [
+      {y:g1, type:'box', name:String(levels[0]), marker:{color:'#3b82f6'}},
+      {y:g2, type:'box', name:String(levels[1]), marker:{color:'#10b981'}}
+    ], {title:`${y} by ${grp}`});
+    return;
+  }
+
+  // paired
+  const y2Sel = document.getElementById('ttY2');
+  if(!y2Sel){
+    out.innerHTML = '<p class="text-xs text-amber-600">Paired test needs a second numeric column.</p>';
+    return;
+  }
+  const y2 = y2Sel.value;
+  if(y2 === y){
+    out.innerHTML = '<p class="text-xs text-amber-600">Y₁ and Y₂ must be different.</p>';
+    return;
+  }
+  const pairs = ds.data.map(r => [Number(r[y]), Number(r[y2])]).filter(([a,b]) => !Number.isNaN(a) && !Number.isNaN(b));
+  if(pairs.length < 2){ out.innerHTML = '<p class="text-xs text-amber-600">Need ≥ 2 complete pairs.</p>'; return; }
+  const diffs = pairs.map(([a,b]) => a - b);
+  const n = diffs.length, m = mean(diffs), s = sd(diffs);
+  const se = s/Math.sqrt(n), t = m/se, df = n-1;
+  const p = 2*(1 - tCDF(Math.abs(t), df));
+  const tc = tInv(.975, df);
+  out.innerHTML = `
+    <div class="text-xs text-gray-500 mb-2">Y₁ = <span class="mono">${y}</span> · Y₂ = <span class="mono">${y2}</span> · n = ${n}</div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Mean diff</div><div class="font-bold mono">${m.toFixed(3)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">t (df=${df})</div><div class="font-bold mono">${t.toFixed(3)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p</div><div class="font-bold mono ${p<.05?'text-emerald-600':'text-amber-600'}">${p<1e-4?'<0.0001':p.toFixed(4)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">95% CI</div><div class="font-bold mono">[${(m-tc*se).toFixed(3)}, ${(m+tc*se).toFixed(3)}]</div></div>
+    </div>`;
+  plot('ttPlot', [{x:diffs, type:'histogram', marker:{color:'#8b5cf6'}}], {title:'Paired differences'});
+}
+
+/* ============== z_test ============== */
+function renderZTest(panel){
+  panel.innerHTML = `
+    <h2 class="text-lg font-bold mb-3"><i class="fa-solid fa-percent text-brand-600 mr-1"></i> z_test (proportion)</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+      <div><label class="text-xs font-semibold">x (successes):</label><input type="number" id="zx" value="48" onchange="runZTest()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600"></div>
+      <div><label class="text-xs font-semibold">n:</label><input type="number" id="zn" value="100" onchange="runZTest()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600"></div>
+      <div><label class="text-xs font-semibold">p₀:</label><input type="number" step="0.01" id="zp0" value="0.5" onchange="runZTest()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600"></div>
+      <div><label class="text-xs font-semibold">Alt:</label>
+        <select id="zalt" onchange="runZTest()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+          <option value="two">two-sided</option><option value="greater">greater</option><option value="less">less</option>
+        </select></div>
+    </div>
+    <div id="zOut"></div>
+    <div id="zPlot" style="height:260px" class="mt-3"></div>`;
+  runZTest();
+}
+function runZTest(){
+  const x = parseFloat(document.getElementById('zx').value);
+  const n = parseFloat(document.getElementById('zn').value);
+  const p0 = parseFloat(document.getElementById('zp0').value);
+  const alt = document.getElementById('zalt').value;
+  if(!(n > 0 && p0 > 0 && p0 < 1)) return;
+  const ph = x/n;
+  const z = (ph - p0) / Math.sqrt(p0*(1-p0)/n);
+  let p;
+  if(alt==='two') p = 2*(1-normCDF(Math.abs(z)));
+  else if(alt==='greater') p = 1-normCDF(z);
+  else p = normCDF(z);
+  const seHat = Math.sqrt(ph*(1-ph)/n);
+  const ci = [Math.max(0, ph-1.96*seHat), Math.min(1, ph+1.96*seHat)];
+  document.getElementById('zOut').innerHTML = `
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p̂</div><div class="font-bold mono">${ph.toFixed(4)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">z</div><div class="font-bold mono">${z.toFixed(3)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p (${alt})</div><div class="font-bold mono ${p<.05?'text-emerald-600':'text-amber-600'}">${p<1e-4?'<0.0001':p.toFixed(4)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">95% CI</div><div class="font-bold mono">[${ci[0].toFixed(3)}, ${ci[1].toFixed(3)}]</div></div>
+    </div>`;
+  const xs = [], ys = [];
+  for(let v = -4; v <= 4; v += 0.1){ xs.push(v); ys.push(normPDF(v)); }
+  plot('zPlot',[
+    {x:xs,y:ys,mode:'lines',name:'N(0,1)',line:{color:'#2563eb'}},
+    {x:[z,z],y:[0,normPDF(z)],mode:'lines',name:'z',line:{color:'#ef4444',width:3}}
+  ],{title:'Standard normal & observed z'});
+}
+
+/* ============== chisq ============== */
+function renderChisq(panel){
+  const ds = activeData();
+  const cats = catCols(ds);
+  if(cats.length < 2){
+    panel.innerHTML = '<p class="text-xs text-amber-600">Need ≥ 2 categorical columns.</p>';
+    return;
+  }
+  const rowDefault = cats[0];
+  const colDefault = cats.find(c => c !== rowDefault);
+  panel.innerHTML = `
+    <h2 class="text-lg font-bold mb-3"><i class="fa-solid fa-table-cells text-brand-600 mr-1"></i> chisq_test</h2>
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div><label class="text-xs font-semibold">Row:</label>
+        <select id="chRow" onchange="runChisq()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+          ${cats.map(c=>`<option value="${c}" ${c===rowDefault?'selected':''}>${c}</option>`).join('')}
+        </select></div>
+      <div><label class="text-xs font-semibold">Column:</label>
+        <select id="chCol" onchange="runChisq()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+          ${cats.map(c=>`<option value="${c}" ${c===colDefault?'selected':''}>${c}</option>`).join('')}
+        </select></div>
+    </div>
+    <div id="chOut"></div>
+    <div id="chPlot" style="height:300px" class="mt-3"></div>`;
+  runChisq();
+}
+function runChisq(){
+  const ds = activeData();
+  const rv = document.getElementById('chRow').value;
+  const cv = document.getElementById('chCol').value;
+  if(rv === cv){ document.getElementById('chOut').innerHTML = '<p class="text-xs text-amber-600">Row and column must differ.</p>'; return; }
+  const rl = [...new Set(ds.data.map(r => r[rv]))];
+  const cl = [...new Set(ds.data.map(r => r[cv]))];
+  const obs = {}, rowSum = {}, colSum = {}; const N = ds.data.length;
+  rl.forEach(r => { obs[r] = {}; cl.forEach(c => obs[r][c] = 0); rowSum[r] = 0; });
+  cl.forEach(c => colSum[c] = 0);
+  ds.data.forEach(r => { obs[r[rv]][r[cv]]++; rowSum[r[rv]]++; colSum[r[cv]]++; });
+  let chi = 0; const resid = [];
+  rl.forEach(r => {
+    const row = [];
+    cl.forEach(c => {
+      const e = rowSum[r]*colSum[c]/N;
+      chi += ((obs[r][c]-e)**2)/e;
+      row.push((obs[r][c]-e)/Math.sqrt(e));
+    });
+    resid.push(row);
+  });
+  const df = (rl.length-1)*(cl.length-1);
+  const p = df > 0 ? 1 - chiSqCDF(chi, df) : NaN;
+  document.getElementById('chOut').innerHTML = `
+    <div class="grid grid-cols-3 gap-3">
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">χ²</div><div class="font-bold mono">${chi.toFixed(3)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">df</div><div class="font-bold mono">${df}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p</div><div class="font-bold mono ${p<.05?'text-emerald-600':'text-amber-600'}">${isNaN(p)?'—':(p<1e-4?'<0.0001':p.toFixed(4))}</div></div>
+    </div>`;
+  plot('chPlot',[{z:resid,x:cl,y:rl,type:'heatmap',colorscale:'RdBu'}],{title:'Pearson residuals'});
+}
+
+/* ============== f_test (ANOVA) ============== */
+function renderFTest(panel){
+  const ds = activeData();
+  const cats = catCols(ds);
+  const nums = numCols(ds);
+  if(!cats.length || !nums.length){
+    panel.innerHTML = '<p class="text-xs text-amber-600">Need numeric response + categorical factor.</p>';
+    return;
+  }
+  panel.innerHTML = `
+    <h2 class="text-lg font-bold mb-3"><i class="fa-solid fa-layer-group text-brand-600 mr-1"></i> f_test (one-way ANOVA)</h2>
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div><label class="text-xs font-semibold">Response Y:</label>
+        <select id="anY" onchange="runAnova()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+          ${nums.map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select></div>
+      <div><label class="text-xs font-semibold">Factor:</label>
+        <select id="anX" onchange="runAnova()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+          ${cats.map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select></div>
+    </div>
+    <div id="anOut"></div>
+    <div id="anPlot" style="height:280px" class="mt-3"></div>`;
+  runAnova();
+}
+function runAnova(){
+  const ds = activeData();
+  const y = document.getElementById('anY').value;
+  const x = document.getElementById('anX').value;
+  if(y === x){ document.getElementById('anOut').innerHTML = '<p class="text-xs text-amber-600">Response and Factor must differ.</p>'; return; }
+  const groups = {};
+  ds.data.forEach(r => {
+    const yy = Number(r[y]);
+    if(Number.isNaN(yy)) return;
+    const key = String(r[x]);
+    (groups[key] = groups[key] || []).push(yy);
+  });
+  const levels = Object.keys(groups);
+  const sizes = levels.map(g => groups[g].length);
+  const n = sizes.reduce((a,b)=>a+b,0);
+  const k = levels.length;
+  if(k < 2 || n <= k){
+    document.getElementById('anOut').innerHTML =
+      `<p class="text-xs text-amber-600">Factor "${x}" has ${k} usable level(s); need ≥ 2 with ≥ 1 obs each.</p>`;
+    return;
+  }
+  const all = Object.values(groups).flat();
+  const grand = mean(all);
+  let ssb = 0, ssw = 0;
+  levels.forEach(g => {
+    const arr = groups[g], gm = mean(arr);
+    ssb += arr.length*(gm-grand)**2;
+    ssw += arr.reduce((s,v)=>s+(v-gm)**2, 0);
+  });
+  const sst = ssb + ssw;
+  const dfB = k - 1, dfW = n - k, dfT = n - 1;
+  const msB = ssb/dfB, msW = ssw/dfW;
+  const F = msB/msW;
+  const p = 1 - fCDF(F, dfB, dfW);
+  const eta2 = ssb/sst;
+  const fCrit = fInv(.95, dfB, dfW);
+  const fmtP = v => isNaN(v) ? '—' : (v<1e-4?'<0.0001':v.toFixed(4));
+  const sig = v => !isNaN(v) && v < 0.05;
+  document.getElementById('anOut').innerHTML = `
+    <div class="text-xs text-gray-500 mb-2">
+      Response: <span class="mono font-semibold">${y}</span>
+      &nbsp;·&nbsp; Factor: <span class="mono font-semibold">${x}</span>
+      &nbsp;·&nbsp; Levels: <span class="mono">${levels.join(', ')}</span>
+      &nbsp;·&nbsp; n = ${n}
+    </div>
+    <table class="min-w-full text-xs border border-gray-200 dark:border-gray-700 mb-3">
+      <thead class="bg-gray-100 dark:bg-gray-700">
+        <tr><th class="p-2 text-left">Source</th><th class="p-2">SS</th><th class="p-2">df</th><th class="p-2">MS</th><th class="p-2">F</th><th class="p-2">p</th></tr>
+      </thead>
+      <tbody class="mono">
+        <tr class="border-t border-gray-200 dark:border-gray-700">
+          <td class="p-2 font-bold">Between (${x})</td>
+          <td class="p-2 text-center">${ssb.toFixed(3)}</td>
+          <td class="p-2 text-center">${dfB}</td>
+          <td class="p-2 text-center">${msB.toFixed(3)}</td>
+          <td class="p-2 text-center font-bold text-brand-600">${F.toFixed(3)}</td>
+          <td class="p-2 text-center ${sig(p)?'text-emerald-600 font-semibold':'text-amber-600'}">${fmtP(p)}</td>
+        </tr>
+        <tr class="border-t border-gray-200 dark:border-gray-700">
+          <td class="p-2 font-bold">Within</td>
+          <td class="p-2 text-center">${ssw.toFixed(3)}</td>
+          <td class="p-2 text-center">${dfW}</td>
+          <td class="p-2 text-center">${msW.toFixed(3)}</td>
+          <td class="p-2 text-center text-gray-400">—</td>
+          <td class="p-2 text-center text-gray-400">—</td>
+        </tr>
+        <tr class="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
+          <td class="p-2 font-bold">Total</td>
+          <td class="p-2 text-center">${sst.toFixed(3)}</td>
+          <td class="p-2 text-center">${dfT}</td>
+          <td class="p-2 text-center text-gray-400">—</td>
+          <td class="p-2 text-center text-gray-400">—</td>
+          <td class="p-2 text-center text-gray-400">—</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-2">
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">F-critical</div><div class="font-bold mono">${fCrit.toFixed(3)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">η²</div><div class="font-bold mono">${eta2.toFixed(3)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Decision</div><div class="font-bold mono ${sig(p)?'text-emerald-600':'text-amber-600'}">${sig(p) ? 'Reject H₀' : 'Fail to reject'}</div></div>
+    </div>`;
+  const traces = levels.map(g => ({y:groups[g], type:'box', name:g}));
+  plot('anPlot', traces, {title:`${y} by ${x}`});
+}
+
+/* ============== DESIGN MATRIX BUILDER ============== */
+function buildDesignMatrix(ds, predictorNames){
+  const X = [];
+  const terms = ['(Intercept)'];
+  const refLevels = {};
+  ds.data.forEach(() => X.push([1]));
+  predictorNames.forEach(name => {
+    const type = colType(ds, name);
+    if(type === 'num'){
+      terms.push(name);
+      ds.data.forEach((r, i) => X[i].push(Number(r[name])));
+    } else {
+      const levels = [...new Set(ds.data.map(r => String(r[name])))].sort();
+      const ref = levels[0];
+      refLevels[name] = ref;
+      for(let k = 1; k < levels.length; k++){
+        const lvl = levels[k];
+        terms.push(`${name}_${lvl}`);
+        ds.data.forEach((r, i) => X[i].push(String(r[name]) === lvl ? 1 : 0));
+      }
+    }
+  });
+  return { X, terms, refLevels };
+}
+
+/* ============== reg ============== */
+function renderReg(panel){
+  const ds = activeData();
+  const nums = numCols(ds);
+  const cats = catCols(ds);
+  if(nums.length < 1){
+    panel.innerHTML = '<p class="text-xs text-amber-600">Need ≥ 1 numeric column for Y.</p>';
+    return;
+  }
+  panel.innerHTML = `
+    <h2 class="text-lg font-bold mb-3"><i class="fa-solid fa-chart-line text-brand-600 mr-1"></i> reg (multiple linear regression)</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+      <div>
+        <label class="text-xs font-semibold">Response Y (numeric):</label>
+        <select id="rgY" onchange="runReg()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+          ${nums.map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-semibold">Predictors (Y auto-excluded):</label>
+        <div id="rgXList" class="border border-gray-300 dark:border-gray-600 rounded p-2 max-h-40 overflow-y-auto bg-gray-50 dark:bg-gray-900"></div>
+      </div>
+    </div>
+    <div id="rgOut"></div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+      <div id="rgP1" style="height:260px"></div>
+      <div id="rgP2" style="height:260px"></div>
+      <div id="rgP3" style="height:260px"></div>
+      <div id="rgP4" style="height:260px"></div>
+    </div>`;
+  buildRegPredictorList();
+  runReg();
+}
+function buildRegPredictorList(){
+  const ds = activeData();
+  const ySel = document.getElementById('rgY').value;
+  const preds = [...numCols(ds), ...catCols(ds)].filter(c => c !== ySel);
+  const list = document.getElementById('rgXList');
+  list.innerHTML = preds.map(c => {
+    const type = colType(ds, c);
+    const badge = type === 'num'
+      ? '<span class="text-[10px] bg-blue-100 text-blue-800 px-1 rounded">num</span>'
+      : '<span class="text-[10px] bg-amber-100 text-amber-800 px-1 rounded">cat</span>';
+    return `
+      <label class="flex items-center gap-2 text-xs py-0.5 px-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+        <input type="checkbox" class="rgXChk" value="${c}" onchange="runReg()">
+        <span class="mono">${c}</span> ${badge}
+      </label>`;
+  }).join('');
+  document.querySelectorAll('.rgXChk').forEach(chk => {
+    if(colType(ds, chk.value) === 'num') chk.checked = true;
+  });
+  list.dataset.yFor = ySel;
+}
+
+function runReg(){
+  const ds = activeData();
+  const yVar = document.getElementById('rgY').value;
+
+  if(document.getElementById('rgXList').dataset.yFor !== yVar){
+    const currentChecked = [...document.querySelectorAll('.rgXChk:checked')].map(el => el.value);
+    document.getElementById('rgXList').dataset.yFor = yVar;
+    const preds = [...numCols(ds), ...catCols(ds)].filter(c => c !== yVar);
+    document.getElementById('rgXList').innerHTML = preds.map(c => {
+      const type = colType(ds, c);
+      const badge = type === 'num'
+        ? '<span class="text-[10px] bg-blue-100 text-blue-800 px-1 rounded">num</span>'
+        : '<span class="text-[10px] bg-amber-100 text-amber-800 px-1 rounded">cat</span>';
+      const wasChecked = currentChecked.includes(c);
+      return `
+        <label class="flex items-center gap-2 text-xs py-0.5 px-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+          <input type="checkbox" class="rgXChk" value="${c}" onchange="runReg()" ${wasChecked?'checked':''}>
+          <span class="mono">${c}</span> ${badge}
+        </label>`;
+    }).join('');
+  }
+
+  const predictors = [...document.querySelectorAll('.rgXChk:checked')].map(el => el.value);
+  const out = document.getElementById('rgOut');
+  if(predictors.length === 0){ out.innerHTML = '<p class="text-xs text-amber-600">Select at least one predictor.</p>'; return; }
+  if(predictors.includes(yVar)){ out.innerHTML = '<p class="text-xs text-amber-600">Response cannot be a predictor.</p>'; return; }
+
+  const y = ds.data.map(r => Number(r[yVar]));
+  const { X, terms, refLevels } = buildDesignMatrix(ds, predictors);
+  const n = y.length, p = X[0].length, dfRes = n - p;
+  if(dfRes <= 0){
+    out.innerHTML = `<p class="text-xs text-amber-600">Not enough obs (n=${n}) for p=${p} parameters.</p>`;
+    return;
+  }
+  const XtX = Array.from({length:p}, () => Array(p).fill(0));
+  const Xty = Array(p).fill(0);
+  for(let i=0;i<n;i++){
+    for(let a=0;a<p;a++){
+      Xty[a] += X[i][a] * y[i];
+      for(let b=0;b<p;b++) XtX[a][b] += X[i][a] * X[i][b];
+    }
+  }
+  const XtXinv = matInv(XtX);
+  if(!XtXinv){ out.innerHTML = '<p class="text-xs text-amber-600">Singular design matrix.</p>'; return; }
+  const beta = Array(p).fill(0);
+  for(let a=0;a<p;a++) for(let b=0;b<p;b++) beta[a] += XtXinv[a][b] * Xty[b];
+
+  const fitted = X.map(row => row.reduce((s,v,j) => s + v*beta[j], 0));
+  const resid = y.map((v,i) => v - fitted[i]);
+  const sse = resid.reduce((s,r) => s + r*r, 0);
+  const ybar = mean(y);
+  const sst = y.reduce((s,v) => s + (v-ybar)**2, 0);
+  const ssr = sst - sse;
+  const mse = sse / dfRes;
+  const seResid = Math.sqrt(mse);
+  const r2 = 1 - sse/sst;
+  const adjR2 = 1 - (1-r2)*(n-1)/dfRes;
+  const Fstat = (ssr/(p-1)) / mse;
+  const Fpval = 1 - fCDF(Fstat, p-1, dfRes);
+
+  const rows = [];
+  for(let j=0;j<p;j++){
+    const sej = Math.sqrt(XtXinv[j][j] * mse);
+    const tj = beta[j] / sej;
+    const pj = 2*(1 - tCDF(Math.abs(tj), dfRes));
+    rows.push({ name: terms[j], est: beta[j], se: sej, t: tj, p: pj });
+  }
+
+  const stdResid = resid.map(r => r / seResid);
+  const leverage = X.map(row => {
+    let h = 0;
+    for(let a=0;a<p;a++) for(let b=0;b<p;b++) h += row[a] * XtXinv[a][b] * row[b];
+    return h;
+  });
+
+  const fmt = (v,d=4) => Math.abs(v) < 1e-12 ? '0' : v.toFixed(d);
+  const fmtP = p => p < 1e-4 ? '<0.0001' : p.toFixed(4);
+  const sig = p => p < 0.05 ? 'text-emerald-600 font-semibold' : 'text-amber-600';
+  const refNote = Object.keys(refLevels).length
+    ? `<p class="text-xs text-gray-500 mt-2">Reference levels: ${Object.entries(refLevels).map(([c,l])=>`${c} = "${l}"`).join(', ')}</p>`
+    : '';
+
+  out.innerHTML = `
+    <table class="min-w-full text-xs border border-gray-200 dark:border-gray-700 mb-3">
+      <thead class="bg-gray-100 dark:bg-gray-700">
+        <tr><th class="p-2 text-left">Term</th><th class="p-2">Estimate</th><th class="p-2">SE</th><th class="p-2">t</th><th class="p-2">p</th></tr>
+      </thead>
+      <tbody class="mono">
+        ${rows.map(r => `
+          <tr class="border-t border-gray-200 dark:border-gray-700">
+            <td class="p-2 ${r.name==='(Intercept)'?'text-gray-500':''}">${r.name}</td>
+            <td class="p-2 text-center">${fmt(r.est)}</td>
+            <td class="p-2 text-center">${fmt(r.se)}</td>
+            <td class="p-2 text-center">${fmt(r.t,3)}</td>
+            <td class="p-2 text-center ${sig(r.p)}">${fmtP(r.p)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">R²</div><div class="font-bold mono text-brand-600">${r2.toFixed(4)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Adj R²</div><div class="font-bold mono">${adjR2.toFixed(4)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Resid SE (df=${dfRes})</div><div class="font-bold mono">${seResid.toFixed(3)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">F(${p-1},${dfRes})</div><div class="font-bold mono">${Fstat.toFixed(2)} (p=${fmtP(Fpval)})</div></div>
+    </div>
+    ${refNote}
+    <p class="text-xs text-gray-500">Formula: ${yVar} ~ ${predictors.join(' + ')}</p>`;
+
+  plot('rgP1', [{x:fitted, y:resid, mode:'markers', marker:{color:'#3b82f6', size:6}}], {
+    title:'1. Residuals vs Fitted',
+    xaxis:{title:'Fitted'}, yaxis:{title:'Residual'},
+    shapes:[{type:'line', x0:Math.min(...fitted), x1:Math.max(...fitted), y0:0, y1:0, line:{color:'#9ca3af', dash:'dash'}}]
+  });
+  const sortedStd = sortN(stdResid);
+  const theo = [];
+  for(let i=0;i<n;i++) theo.push(normInv((i+0.5)/n));
+  const maxQ = Math.max(...sortedStd.map(Math.abs), ...theo.map(Math.abs));
+  plot('rgP2', [
+    {x:theo, y:sortedStd, mode:'markers', name:'Std residuals', marker:{color:'#10b981', size:6}},
+    {x:[-maxQ,maxQ], y:[-maxQ,maxQ], mode:'lines', name:'y=x', line:{color:'#9ca3af', dash:'dash'}}
+  ], { title:'2. Normal Q-Q', xaxis:{title:'Theoretical'}, yaxis:{title:'Std residual'} });
+  const sqrtStd = stdResid.map(r => Math.sqrt(Math.abs(r)));
+  plot('rgP3', [{x:fitted, y:sqrtStd, mode:'markers', marker:{color:'#f59e0b', size:6}}], {
+    title:'3. Scale-Location', xaxis:{title:'Fitted'}, yaxis:{title:'√|std resid|'}
+  });
+  const cookD = resid.map((r,i) => {
+    const std_r = r / seResid;
+    return (std_r*std_r/p) * (leverage[i] / ((1 - leverage[i])**2));
+  });
+  const thresh = 4/n;
+  plot('rgP4', [{
+    x:leverage, y:stdResid, mode:'markers',
+    marker:{ color: cookD.map(d => d > thresh ? '#ef4444' : '#8b5cf6'),
+             size: cookD.map(d => Math.max(5, Math.min(14, 4 + d*20))) },
+    text: cookD.map((d,i) => `obs ${i+1}<br>Cook's D = ${d.toFixed(3)}`),
+    hovertemplate:'%{text}<extra></extra>'
+  }], {
+    title:`4. Residuals vs Leverage (red = Cook's D > ${thresh.toFixed(3)})`,
+    xaxis:{title:'Leverage'}, yaxis:{title:'Std residual'}
+  });
+}
+
+/* ============== logistic_reg ============== */
+function renderLogistic(panel){
+  const ds = activeData();
+  const bins = binaryCatCols(ds);
+  if(!bins.length){
+    panel.innerHTML = '<p class="text-xs text-amber-600">Need at least one binary outcome column.</p>';
+    return;
+  }
+  panel.innerHTML = `
+    <h2 class="text-lg font-bold mb-3"><i class="fa-solid fa-toggle-on text-brand-600 mr-1"></i> logistic_reg</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+      <div>
+        <label class="text-xs font-semibold">Binary Y:</label>
+        <select id="lgY" onchange="runLogistic()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+          ${bins.map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-semibold">Predictors (Y auto-excluded):</label>
+        <div id="lgXList" class="border border-gray-300 dark:border-gray-600 rounded p-2 max-h-40 overflow-y-auto bg-gray-50 dark:bg-gray-900"></div>
+      </div>
+    </div>
+    <div id="lgOut"></div>
+    <div id="lgROC" style="height:320px" class="mt-3"></div>`;
+  buildLogisticPredictorList();
+  runLogistic();
+}
+function buildLogisticPredictorList(){
+  const ds = activeData();
+  const ySel = document.getElementById('lgY').value;
+  const preds = [...numCols(ds), ...catCols(ds)].filter(c => c !== ySel);
+  const list = document.getElementById('lgXList');
+  list.innerHTML = preds.map(c => {
+    const type = colType(ds, c);
+    const badge = type === 'num'
+      ? '<span class="text-[10px] bg-blue-100 text-blue-800 px-1 rounded">num</span>'
+      : '<span class="text-[10px] bg-amber-100 text-amber-800 px-1 rounded">cat</span>';
+    return `
+      <label class="flex items-center gap-2 text-xs py-0.5 px-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+        <input type="checkbox" class="lgXChk" value="${c}" onchange="runLogistic()">
+        <span class="mono">${c}</span> ${badge}
+      </label>`;
+  }).join('');
+  document.querySelectorAll('.lgXChk').forEach(chk => {
+    if(colType(ds, chk.value) === 'num') chk.checked = true;
+  });
+  list.dataset.yFor = ySel;
+}
+function runLogistic(){
+  const ds = activeData();
+  const yv = document.getElementById('lgY').value;
+
+  if(document.getElementById('lgXList').dataset.yFor !== yv){
+    const currentChecked = [...document.querySelectorAll('.lgXChk:checked')].map(el => el.value);
+    document.getElementById('lgXList').dataset.yFor = yv;
+    const preds = [...numCols(ds), ...catCols(ds)].filter(c => c !== yv);
+    document.getElementById('lgXList').innerHTML = preds.map(c => {
+      const type = colType(ds, c);
+      const badge = type === 'num'
+        ? '<span class="text-[10px] bg-blue-100 text-blue-800 px-1 rounded">num</span>'
+        : '<span class="text-[10px] bg-amber-100 text-amber-800 px-1 rounded">cat</span>';
+      const wasChecked = currentChecked.includes(c);
+      return `
+        <label class="flex items-center gap-2 text-xs py-0.5 px-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+          <input type="checkbox" class="lgXChk" value="${c}" onchange="runLogistic()" ${wasChecked?'checked':''}>
+          <span class="mono">${c}</span> ${badge}
+        </label>`;
+    }).join('');
+  }
+
+  const predictors = [...document.querySelectorAll('.lgXChk:checked')].map(el => el.value);
+  const out = document.getElementById('lgOut');
+  if(predictors.length === 0){ out.innerHTML = '<p class="text-xs text-amber-600">Select at least one predictor.</p>'; return; }
+  if(predictors.includes(yv)){ out.innerHTML = '<p class="text-xs text-amber-600">Response cannot be a predictor.</p>'; return; }
+
+  const raw = ds.data.map(r => r[yv]);
+  const levels = [...new Set(raw.map(String))].sort();
+  if(levels.length !== 2){
+    out.innerHTML = `<p class="text-xs text-amber-600">"${yv}" must have exactly 2 levels.</p>`;
+    return;
+  }
+  const posLevel = levels[1];
+  const y = raw.map(v => String(v) === posLevel ? 1 : 0);
+
+  const { X, terms, refLevels } = buildDesignMatrix(ds, predictors);
+  const n = y.length;
+  const p = X[0].length;
+
+  let beta = Array(p).fill(0);
+  let converged = false;
+  for(let it=0; it<100; it++){
+    const grad = Array(p).fill(0);
+    const H = Array.from({length:p}, () => Array(p).fill(0));
+    for(let i=0;i<n;i++){
+      const eta = X[i].reduce((s,v,j) => s + v*beta[j], 0);
+      const phat = 1/(1+Math.exp(-eta));
+      const w = Math.max(phat*(1-phat), 1e-10);
+      const r = y[i] - phat;
+      for(let a=0;a<p;a++){
+        grad[a] += X[i][a] * r;
+        for(let b=0;b<p;b++) H[a][b] += X[i][a] * X[i][b] * w;
+      }
+    }
+    const Hinv = matInv(H);
+    if(!Hinv) break;
+    let delta = Array(p).fill(0);
+    let maxStep = 0;
+    for(let a=0;a<p;a++){
+      for(let b=0;b<p;b++) delta[a] += Hinv[a][b] * grad[b];
+      maxStep = Math.max(maxStep, Math.abs(delta[a]));
+    }
+    for(let a=0;a<p;a++) beta[a] += delta[a];
+    if(maxStep < 1e-8){ converged = true; break; }
+  }
+
+  const probs = X.map(row => {
+    const eta = row.reduce((s,v,j) => s + v*beta[j], 0);
+    return 1/(1+Math.exp(-eta));
+  });
+
+  const pos = probs.filter((p,i) => y[i]===1);
+  const neg = probs.filter((p,i) => y[i]===0);
+  let auc = NaN;
+  if(pos.length && neg.length){
+    let s = 0;
+    pos.forEach(p => neg.forEach(q => { if(p>q)s++; else if(p===q)s+=0.5; }));
+    auc = s/(pos.length*neg.length);
+  }
+
+  const thresholds = [...new Set(probs)].sort((a,b)=>b-a);
+  const roc = [{fpr:0,tpr:0}];
+  thresholds.forEach(th => {
+    let tp=0,fp=0,tn=0,fn=0;
+    probs.forEach((p,i) => {
+      if(p>=th){ if(y[i]===1)tp++; else fp++; }
+      else { if(y[i]===0)tn++; else fn++; }
+    });
+    if(tp+fn>0 && fp+tn>0) roc.push({fpr:fp/(fp+tn), tpr:tp/(tp+fn)});
+  });
+  roc.push({fpr:1,tpr:1});
+  roc.sort((a,b)=>a.fpr-b.fpr);
+
+  let correct = 0;
+  probs.forEach((p,i) => { if((p>=.5?1:0)===y[i]) correct++; });
+  const acc = correct/n;
+
+  const H = Array.from({length:p}, () => Array(p).fill(0));
+  for(let i=0;i<n;i++){
+    const eta = X[i].reduce((s,v,j) => s + v*beta[j], 0);
+    const phat = 1/(1+Math.exp(-eta));
+    const w = Math.max(phat*(1-phat), 1e-10);
+    for(let a=0;a<p;a++) for(let b=0;b<p;b++) H[a][b] += X[i][a] * X[i][b] * w;
+  }
+  const Hinv = matInv(H);
+  const rows = [];
+  for(let j=0;j<p;j++){
+    const se = Hinv ? Math.sqrt(Hinv[j][j]) : NaN;
+    const z = beta[j] / se;
+    const pVal = 2*(1 - normCDF(Math.abs(z)));
+    rows.push({ name: terms[j], est: beta[j], se, z, p: pVal });
+  }
+
+  const fmt = (v,d=4) => (isNaN(v) || !isFinite(v)) ? '—' : Math.abs(v) < 1e-12 ? '0' : v.toFixed(d);
+  const fmtP = p => (isNaN(p) || !isFinite(p)) ? '—' : p < 1e-4 ? '<0.0001' : p.toFixed(4);
+  const sig = p => p < 0.05 ? 'text-emerald-600 font-semibold' : 'text-amber-600';
+  const refNote = Object.keys(refLevels).length
+    ? `<p class="text-xs text-gray-500 mt-2">Reference levels: ${Object.entries(refLevels).map(([c,l])=>`${c} = "${l}"`).join(', ')}</p>`
+    : '';
+
+  out.innerHTML = `
+    <div class="text-xs text-gray-500 mb-2">
+      Y = <span class="mono">${yv}</span> · Positive class = "${posLevel}" · n = ${n} · ${converged ? 'converged' : 'may not have converged'}
+    </div>
+    <table class="min-w-full text-xs border border-gray-200 dark:border-gray-700 mb-3">
+      <thead class="bg-gray-100 dark:bg-gray-700">
+        <tr><th class="p-2 text-left">Term</th><th class="p-2">β</th><th class="p-2">SE</th><th class="p-2">z</th><th class="p-2">p</th><th class="p-2">OR</th></tr>
+      </thead>
+      <tbody class="mono">
+        ${rows.map(r => `
+          <tr class="border-t border-gray-200 dark:border-gray-700">
+            <td class="p-2 ${r.name==='(Intercept)'?'text-gray-500':''}">${r.name}</td>
+            <td class="p-2 text-center">${fmt(r.est)}</td>
+            <td class="p-2 text-center">${fmt(r.se)}</td>
+            <td class="p-2 text-center">${fmt(r.z,3)}</td>
+            <td class="p-2 text-center ${sig(r.p)}">${fmtP(r.p)}</td>
+            <td class="p-2 text-center">${fmt(Math.exp(r.est),3)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-2">
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Accuracy @ 0.5</div><div class="font-bold mono">${(acc*100).toFixed(1)}%</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">AUC</div><div class="font-bold mono text-brand-600">${isNaN(auc)?'—':auc.toFixed(3)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Parameters</div><div class="font-bold mono">${p}</div></div>
+    </div>
+    ${refNote}
+    <p class="text-xs text-gray-500">Formula: ${yv} ~ ${predictors.join(' + ')}</p>`;
+  plot('lgROC', [
+    {x:roc.map(p=>p.fpr),y:roc.map(p=>p.tpr),mode:'lines',name:`ROC (AUC=${isNaN(auc)?'—':auc.toFixed(3)})`,line:{color:'#10b981',width:3}},
+    {x:[0,1],y:[0,1],mode:'lines',name:'Chance',line:{color:'#9ca3af',dash:'dash'}}
+  ], {title:'ROC curve', xaxis:{title:'FPR'}, yaxis:{title:'TPR'}});
+}
+
+/* ============== quality (SPC) ============== */
+const SPC = {
+  A2:{2:1.880,3:1.023,4:0.729,5:0.577,6:0.483,7:0.419,8:0.373,9:0.337},
+  D3:{2:0,3:0,4:0,5:0,6:0,7:0.076,8:0.136,9:0.184},
+  D4:{2:3.267,3:2.574,4:2.282,5:2.114,6:2.004,7:1.924,8:1.864,9:1.816},
+  B3:{2:0,3:0,4:0,5:0,6:0.030,7:0.118,8:0.185,9:0.239},
+  B4:{2:3.267,3:2.568,4:2.266,5:2.089,6:1.970,7:1.882,8:1.815,9:1.761}
+};
+function renderQuality(panel){
+  panel.innerHTML = `
+    <h2 class="text-lg font-bold mb-3"><i class="fa-solid fa-sliders text-brand-600 mr-1"></i> quality (SPC)</h2>
+    <p class="text-xs text-gray-500 mb-3">Uses the quality_parts dataset.</p>
+    <label class="text-xs font-semibold">Chart:</label>
+    <select id="spcType" onchange="runQuality()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600 mb-3">
+      <option value="xbar">X-bar</option><option value="r">R-chart</option><option value="s">S-chart</option><option value="p">p-chart</option>
+    </select>
+    <div id="spcPlot" style="height:340px"></div>`;
+  runQuality();
+}
+function runQuality(){
+  const type = document.getElementById('spcType').value;
+  const ds = DATASETS.quality_parts.data;
+  const labels = ds.map(d => 'S' + d.Subgroup);
+  if(type === 'p'){
+    const props = ds.map(d => d.DefectCount/d.BatchSize);
+    const sizes = ds.map(d => d.BatchSize);
+    const pbar = ds.reduce((s,d)=>s+d.DefectCount,0) / ds.reduce((s,d)=>s+d.BatchSize,0);
+    const ucl = sizes.map(n => pbar + 3*Math.sqrt(pbar*(1-pbar)/n));
+    const lcl = sizes.map(n => Math.max(0, pbar - 3*Math.sqrt(pbar*(1-pbar)/n)));
+    plot('spcPlot',[
+      {x:labels,y:props,mode:'lines+markers',name:'p̂',line:{color:'#f59e0b'}},
+      {x:labels,y:ucl,mode:'lines',name:'UCL',line:{color:'#ef4444',dash:'dash'}},
+      {x:labels,y:labels.map(()=>pbar),mode:'lines',name:'CL',line:{color:'#10b981'}},
+      {x:labels,y:lcl,mode:'lines',name:'LCL',line:{color:'#ef4444',dash:'dash'}}
+    ],{title:`p-chart (CL=${pbar.toFixed(4)})`});
+    return;
+  }
+  const subs = ds.map(d => [d.Sub1,d.Sub2,d.Sub3,d.Sub4,d.Sub5]);
+  const n = 5;
+  let center, ucl, lcl, pts, label, color;
+  if(type === 'xbar'){
+    const means = subs.map(mean), ranges = subs.map(a => Math.max(...a)-Math.min(...a));
+    const xbarbar = mean(means), rbar = mean(ranges);
+    center = xbarbar; ucl = xbarbar + SPC.A2[n]*rbar; lcl = xbarbar - SPC.A2[n]*rbar;
+    pts = means; label = 'x̄'; color = '#2563eb';
+  } else if(type === 'r'){
+    const ranges = subs.map(a => Math.max(...a)-Math.min(...a));
+    const rbar = mean(ranges);
+    center = rbar; ucl = SPC.D4[n]*rbar; lcl = SPC.D3[n]*rbar;
+    pts = ranges; label = 'R'; color = '#8b5cf6';
+  } else {
+    const ss = subs.map(sd);
+    const sbar = mean(ss);
+    center = sbar; ucl = SPC.B4[n]*sbar; lcl = SPC.B3[n]*sbar;
+    pts = ss; label = 's'; color = '#f59e0b';
+  }
+  const ooc = pts.map((v,i)=> (v>ucl||v<lcl)?i:-1).filter(i=>i>=0);
+  plot('spcPlot',[
+    {x:labels,y:pts,mode:'lines+markers',name:label,line:{color:color},
+     marker:{color:pts.map((v,i)=>ooc.includes(i)?'#ef4444':color), size:pts.map((v,i)=>ooc.includes(i)?11:6)}},
+    {x:labels,y:labels.map(()=>ucl),mode:'lines',name:'UCL',line:{color:'#ef4444',dash:'dash'}},
+    {x:labels,y:labels.map(()=>center),mode:'lines',name:'CL',line:{color:'#10b981'}},
+    {x:labels,y:labels.map(()=>lcl),mode:'lines',name:'LCL',line:{color:'#ef4444',dash:'dash'}}
+  ],{title:`${label}-chart (CL=${center.toFixed(3)}, ${ooc.length} OOC)`});
+}
+
+/* ============== sim ============== */
+function randn(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+const drawFrom = d => d==='uniform'?Math.random()
+  : d==='exp' ? -Math.log(1-Math.random())
+  : d==='binom' ? Array.from({length:10},()=>Math.random()<.5?1:0).reduce((a,b)=>a+b,0)
+  : d==='skew' ? randn()**2
+  : Math.random();
+
+const SIM_PARAMS = {
+  coin:      [['coinN','Flips',100,1],['coinP','P(Heads)',0.5,0.05],['coinTrials','Repetitions',1,1]],
+  die:       [['dieN','Rolls',100,1],['dieSides','Sides',6,1],['dieTrials','Repetitions',1,1]],
+  birthday:  [['bdN','People per group',23,1],['bdTrials','Repetitions',500,1]],
+  clt_mean:  [['cltDist','Distribution','uniform',''],['cltN','n',30,1],['cltTrials','Repetitions',1000,1]],
+  clt_prop:  [['cpP','True p',0.5,0.05],['cpN','n',30,1],['cpTrials','Repetitions',1000,1]],
+  pval_t:    [['ptEffect','Effect (σ)',0,0.1],['ptN','n',20,1],['ptTrials','Repetitions',1000,1]],
+  pval_z:    [['pzP0','p₀',0.5,0.05],['pzP','True p',0.5,0.05],['pzN','n',30,1],['pzTrials','Repetitions',1000,1]]
+};
+
+const SIM_DESCRIPTIONS = {
+  coin: { title:"Coin flips",
+    what:"Flip a coin <span class='mono'>n</span> times (heads with probability <span class='mono'>p</span>) and count heads. Repeat this experiment <span class='mono'>Repetitions</span> times and histogram the head-counts.",
+    learn:"The head-counts follow Binomial(n, p): symmetric around n·p with SD √(n·p·(1−p)). Set p ≠ 0.5 to see a biased coin shift the distribution." },
+  die: { title:"Die rolls",
+    what:"Roll an <span class='mono'>s</span>-sided die <span class='mono'>n</span> times and record how often each face appears. Run <span class='mono'>Repetitions</span> batches and pool the frequencies.",
+    learn:"A χ² goodness-of-fit test checks whether the observed frequencies are consistent with a fair die (each face = 1/s). Larger n detects smaller biases." },
+  birthday: { title:"Birthday paradox",
+    what:"Generate <span class='mono'>n</span> random birthdays (uniform over 365 days) and check whether any two match. Repeat this <span class='mono'>Repetitions</span> times. The fraction of repetitions with a match estimates P(shared birthday | n).",
+    learn:"With just 23 people, P(match) already exceeds 50%. The plot compares the simulated estimate to the theoretical curve 1 − ∏(365−i)/365 across n = 2..80." },
+  clt_mean: { title:"CLT — sample mean",
+    what:"Draw <span class='mono'>n</span> independent values from a chosen population distribution, compute the sample mean, and repeat <span class='mono'>Repetitions</span> times. Histogram the means.",
+    learn:"The Central Limit Theorem: regardless of the population shape, the distribution of sample means approaches Normal(μ, σ²/n). Try the skewed χ²₁ with n = 5, then 30, then 100." },
+  clt_prop: { title:"CLT — sample proportion",
+    what:"Draw <span class='mono'>n</span> Bernoulli trials (success probability <span class='mono'>p</span>), compute the sample proportion p̂, and repeat <span class='mono'>Repetitions</span> times. Histogram the p̂ values.",
+    learn:"As n grows, p̂ becomes approximately Normal(p, p(1−p)/n). The empirical SD of p̂ should match the theoretical √(p(1−p)/n). This justifies the normal approximation to the binomial." },
+  pval_t: { title:"p-value simulation (one-sample t)",
+    what:"Draw <span class='mono'>n</span> observations from Normal(μ, 1) where μ = <span class='mono'>Effect</span>, run a one-sample t-test of H₀: μ = 0, and record the p-value. Repeat <span class='mono'>Repetitions</span> times.",
+    learn:"With Effect = 0 the p-values are uniform on [0, 1] and the rejection rate at α = 0.05 equals ~5% (correct type I error). With Effect ≠ 0 the p-values cluster near 0 and the rejection rate = statistical power." },
+  pval_z: { title:"p-value simulation (proportion z)",
+    what:"Flip a biased coin <span class='mono'>n</span> times with true probability <span class='mono'>p</span>, compute the sample proportion, and run a two-sided z-test of H₀: p = <span class='mono'>p₀</span>. Repeat <span class='mono'>Repetitions</span> times.",
+    learn:"With p = p₀ the p-values are uniform (type I error ≈ 5%). With p ≠ p₀ the rejection rate is the power. Small n and extreme p reveal the limits of the normal approximation." }
+};
+
+function renderSim(panel){
+  panel.innerHTML = `
+    <h2 class="text-lg font-bold mb-3"><i class="fa-solid fa-dice text-brand-600 mr-1"></i> sim</h2>
+    <label class="text-xs font-semibold">Simulation type:</label>
+    <select id="simType" onchange="updateSimParams(); runSim()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600 mb-3">
+      <option value="coin">Coin flips</option>
+      <option value="die">Die rolls</option>
+      <option value="birthday">Birthday paradox</option>
+      <option value="clt_mean">CLT — sample mean</option>
+      <option value="clt_prop">CLT — sample proportion</option>
+      <option value="pval_t">p-value sim (one-sample t)</option>
+      <option value="pval_z">p-value sim (proportion z)</option>
+    </select>
+    <details id="simHelp" class="mb-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg" open>
+      <summary class="cursor-pointer px-3 py-2 text-xs font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-2">
+        <i class="fa-solid fa-circle-info"></i>
+        <span id="simHelpTitle">About this simulation</span>
+        <i class="fa-solid fa-chevron-down ml-auto text-[10px]"></i>
+      </summary>
+      <div class="px-3 pb-3 text-xs text-gray-700 dark:text-gray-300 space-y-2">
+        <p><strong>What is simulated:</strong> <span id="simHelpWhat"></span></p>
+        <p><strong>What you learn:</strong> <span id="simHelpLearn"></span></p>
+      </div>
+    </details>
+    <div id="simParams" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3"></div>
+    <button onclick="runSim()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm rounded-lg font-semibold">
+      <i class="fa-solid fa-play mr-1"></i> Run
+    </button>
+    <div id="simSummary" class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+    <div id="simPlot" style="height:320px" class="mt-3"></div>`;
+  updateSimParams();
+  setTimeout(runSim, 30);
+}
+function updateSimParams(){
+  const type = document.getElementById('simType').value;
+  const desc = SIM_DESCRIPTIONS[type];
+  document.getElementById('simHelpTitle').textContent = desc.title;
+  document.getElementById('simHelpWhat').innerHTML  = desc.what;
+  document.getElementById('simHelpLearn').innerHTML = desc.learn;
+
+  const defs = SIM_PARAMS[type];
+  const box = document.getElementById('simParams');
+  box.innerHTML = defs.map(([id,label,def,step]) => {
+    if(id === 'cltDist'){
+      return `<div><label class="text-[11px] font-semibold">${label}</label>
+        <select id="${id}" onchange="runSim()" class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+          <option value="uniform">Uniform(0,1)</option>
+          <option value="exp">Exponential(1)</option>
+          <option value="binom">Binomial(10,0.5)</option>
+          <option value="skew">Skewed χ²₁</option>
+        </select></div>`;
+    }
+    return `<div><label class="text-[11px] font-semibold">${label}</label>
+      <input type="number" id="${id}" value="${def}" step="${step}" onchange="runSim()"
+             class="w-full text-xs p-2 rounded border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600"></div>`;
+  }).join('');
+}
+function simVal(id, fallback){
+  const el = document.getElementById(id);
+  if(!el) return fallback;
+  const v = el.value === '' ? NaN : Number(el.value);
+  return isNaN(v) ? fallback : v;
+}
+function runSim(){
+  const type = document.getElementById('simType').value;
+  const sum = document.getElementById('simSummary');
+  let trace = null, title = '', footer = '';
+
+  if(type === 'coin'){
+    const n = simVal('coinN', 100), p = simVal('coinP', 0.5), reps = simVal('coinTrials', 1);
+    const out = []; let totH = 0;
+    for(let k=0;k<reps;k++){ let h = 0; for(let i=0;i<n;i++) if(Math.random()<p) h++; totH += h; out.push(h); }
+    sum.innerHTML = `
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">E[Heads]</div><div class="font-bold mono">${(n*p).toFixed(1)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Observed mean</div><div class="font-bold mono">${(totH/reps).toFixed(2)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">SD</div><div class="font-bold mono">${Math.sqrt(n*p*(1-p)).toFixed(2)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Repetitions</div><div class="font-bold mono">${reps}</div></div>`;
+    trace = {x:out, type:'histogram', marker:{color:'#3b82f6'}};
+    title = `Heads count (n=${n}, p=${p})`;
+    footer = `E[Heads] = n·p = ${n}·${p} = ${(n*p).toFixed(1)} · SD = √(n·p·(1−p)) = ${Math.sqrt(n*p*(1-p)).toFixed(2)}`;
+  }
+  else if(type === 'die'){
+    const n = simVal('dieN', 100), sides = simVal('dieSides', 6), reps = simVal('dieTrials', 1);
+    const all = [];
+    for(let k=0;k<reps;k++) for(let i=0;i<n;i++) all.push(1+Math.floor(Math.random()*sides));
+    const freq = {}; all.forEach(v => freq[v]=(freq[v]||0)+1);
+    const exp = all.length/sides;
+    let chi = 0;
+    for(let s=1;s<=sides;s++){ const o = freq[s]||0; chi += (o-exp)**2/exp; }
+    const df = sides-1;
+    const p = 1 - chiSqCDF(chi, df);
+    sum.innerHTML = `
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Total rolls</div><div class="font-bold mono">${all.length}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">E per face</div><div class="font-bold mono">${exp.toFixed(1)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">χ² (df=${df})</div><div class="font-bold mono">${chi.toFixed(2)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p (fair die?)</div><div class="font-bold mono ${p<.05?'text-amber-600':'text-emerald-600'}">${p<1e-4?'<0.0001':p.toFixed(4)}</div></div>`;
+    const xs = Object.keys(freq).map(Number).sort((a,b)=>a-b);
+    trace = {x:xs, y:xs.map(x=>freq[x]), type:'bar', marker:{color:'#8b5cf6'}};
+    title = `${sides}-sided die frequencies`;
+    footer = p < 0.05 ? 'p < 0.05 → reject fairness' : 'p ≥ 0.05 → consistent with a fair die';
+  }
+  else if(type === 'birthday'){
+    const people = simVal('bdN', 23), reps = simVal('bdTrials', 500);
+    let hits = 0;
+    for(let k=0;k<reps;k++){
+      const seen = new Set(); let share = false;
+      for(let i=0;i<people;i++){ const d = Math.floor(Math.random()*365); if(seen.has(d)){ share = true; break; } seen.add(d); }
+      if(share) hits++;
+    }
+    let theo = 1;
+    for(let i=0;i<people;i++) theo *= (365-i)/365;
+    theo = 1-theo;
+    sum.innerHTML = `
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Simulated P</div><div class="font-bold mono text-brand-600">${(hits/reps).toFixed(4)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Theoretical P</div><div class="font-bold mono">${theo.toFixed(4)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">People per group</div><div class="font-bold mono">${people}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Repetitions</div><div class="font-bold mono">${reps}</div></div>`;
+    const xs = [], ysSim = [], ysTheo = [];
+    const maxPeople = Math.max(people, 30);
+    for(let k=2; k<=Math.min(80, maxPeople+20); k++){
+      let h = 0; const sub = Math.min(200, reps);
+      for(let t=0;t<sub;t++){
+        const s = new Set(); let sh = false;
+        for(let i=0;i<k;i++){ const d=Math.floor(Math.random()*365); if(s.has(d)){sh=true;break;} s.add(d); }
+        if(sh) h++;
+      }
+      xs.push(k); ysSim.push(h/sub);
+      let th = 1; for(let i=0;i<k;i++) th *= (365-i)/365;
+      ysTheo.push(1-th);
+    }
+    trace = [
+      {x:xs, y:ysSim, mode:'lines+markers', name:'Simulated', line:{color:'#3b82f6'}},
+      {x:xs, y:ysTheo, mode:'lines', name:'Theoretical', line:{color:'#ef4444', dash:'dash'}}
+    ];
+    title = 'Birthday probability vs #people';
+    footer = `Simulated P = ${hits}/${reps} groups had a shared birthday · Theoretical P(shared | ${people}) = ${theo.toFixed(4)}`;
+  }
+  else if(type === 'clt_mean'){
+    const dist = document.getElementById('cltDist').value;
+    const n = simVal('cltN', 30), reps = simVal('cltTrials', 1000);
+    const means = [];
+    for(let k=0;k<reps;k++){ let s = 0; for(let i=0;i<n;i++) s += drawFrom(dist); means.push(s/n); }
+    const m = mean(means), s = sd(means);
+    sum.innerHTML = `
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Mean of means</div><div class="font-bold mono">${m.toFixed(4)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">SD of means</div><div class="font-bold mono">${s.toFixed(4)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">n</div><div class="font-bold mono">${n}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Repetitions</div><div class="font-bold mono">${reps}</div></div>`;
+    const xs = [], ys = [];
+    const lo = m-4*s, hi = m+4*s;
+    for(let x=lo; x<=hi; x+=(hi-lo)/150){ xs.push(x); ys.push(reps*(hi-lo)/150 * normPDF((x-m)/s)/s); }
+    trace = [
+      {x:means, type:'histogram', histnorm:'probability density', name:'Sample means', marker:{color:'#3b82f6'}},
+      {x:xs, y:ys, mode:'lines', name:'N(m, s²)', line:{color:'#ef4444'}}
+    ];
+    title = `CLT — sample means (${dist}, n=${n})`;
+    footer = `Observed SD of means = ${s.toFixed(4)} · CLT predicts σ/√n; the histogram should approach a Normal bell as n grows.`;
+  }
+  else if(type === 'clt_prop'){
+    const p = simVal('cpP', .5), n = simVal('cpN', 30), reps = simVal('cpTrials', 1000);
+    const props = [];
+    for(let k=0;k<reps;k++){ let s = 0; for(let i=0;i<n;i++) if(Math.random()<p) s++; props.push(s/n); }
+    const m = mean(props), s = sd(props);
+    sum.innerHTML = `
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Mean p̂</div><div class="font-bold mono">${m.toFixed(4)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">SD p̂</div><div class="font-bold mono">${s.toFixed(4)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Theoretical SE</div><div class="font-bold mono">${Math.sqrt(p*(1-p)/n).toFixed(4)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Repetitions</div><div class="font-bold mono">${reps}</div></div>`;
+    const xs = [], ys = [];
+    const lo = m-4*s, hi = m+4*s;
+    for(let x=lo; x<=hi; x+=(hi-lo)/150){ xs.push(x); ys.push(reps*(hi-lo)/150*normPDF((x-m)/s)/s); }
+    trace = [
+      {x:props, type:'histogram', histnorm:'probability density', name:'p̂', marker:{color:'#10b981'}},
+      {x:xs, y:ys, mode:'lines', name:'Normal approx', line:{color:'#ef4444'}}
+    ];
+    title = `CLT — sample proportions (n=${n})`;
+    footer = `Empirical SD of p̂ = ${s.toFixed(4)} · Theoretical SE = √(p(1−p)/n) = ${Math.sqrt(p*(1-p)/n).toFixed(4)}`;
+  }
+  else if(type === 'pval_t'){
+    const eff = simVal('ptEffect', 0), n = simVal('ptN', 20), reps = simVal('ptTrials', 1000);
+    const ps = []; let rej = 0;
+    for(let k=0;k<reps;k++){
+      const x = []; for(let i=0;i<n;i++) x.push(eff + randn());
+      const m = mean(x), s = sd(x);
+      const t = m / (s/Math.sqrt(n));
+      const p = 2*(1-tCDF(Math.abs(t), n-1));
+      ps.push(p); if(p<.05) rej++;
+    }
+    sum.innerHTML = `
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Reject rate (α=.05)</div><div class="font-bold mono text-brand-600">${(rej/reps).toFixed(3)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">True effect</div><div class="font-bold mono">${eff}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">n</div><div class="font-bold mono">${n}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Repetitions</div><div class="font-bold mono">${reps}</div></div>`;
+    trace = {x:ps, type:'histogram', nbinsx:30, marker:{color:'#f59e0b'}};
+    title = 'Distribution of p-values';
+    footer = eff === 0
+      ? `Effect = 0 (H₀ true) → p-values uniform; rejection rate ≈ α = 0.05. Observed: ${(rej/reps).toFixed(3)}`
+      : `Effect = ${eff} (H₁ true) → rejection rate = power. Observed: ${(rej/reps).toFixed(3)}`;
+  }
+  else if(type === 'pval_z'){
+    const p0 = simVal('pzP0', .5), p = simVal('pzP', .5), n = simVal('pzN', 30), reps = simVal('pzTrials', 1000);
+    const ps = []; let rej = 0;
+    for(let k=0;k<reps;k++){
+      let s = 0; for(let i=0;i<n;i++) if(Math.random()<p) s++;
+      const ph = s/n;
+      const z = (ph - p0)/Math.sqrt(p0*(1-p0)/n);
+      const pv = 2*(1-normCDF(Math.abs(z)));
+      ps.push(pv); if(pv<.05) rej++;
+    }
+    sum.innerHTML = `
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Reject rate (α=.05)</div><div class="font-bold mono text-brand-600">${(rej/reps).toFixed(3)}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p₀ / true p</div><div class="font-bold mono">${p0} / ${p}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">n</div><div class="font-bold mono">${n}</div></div>
+      <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Repetitions</div><div class="font-bold mono">${reps}</div></div>`;
+    trace = {x:ps, type:'histogram', nbinsx:30, marker:{color:'#6366f1'}};
+    title = 'Distribution of p-values (z-test)';
+    footer = p === p0
+      ? `p = p₀ (H₀ true) → p-values uniform; rejection rate ≈ α = 0.05. Observed: ${(rej/reps).toFixed(3)}`
+      : `p ≠ p₀ (H₁ true) → rejection rate = power. Observed: ${(rej/reps).toFixed(3)}`;
+  }
+
+  plot('simPlot', Array.isArray(trace) ? trace : [trace], {title});
+  const sumEl = document.getElementById('simSummary');
+  let capt = document.getElementById('simCaption');
+  if(!capt){
+    capt = document.createElement('p');
+    capt.id = 'simCaption';
+    capt.className = 'text-xs text-gray-500 mt-2';
+    sumEl.parentNode.insertBefore(capt, sumEl.nextSibling);
+  }
+  capt.innerHTML = footer;
+}
+
+/* ============== CSV ============== */
+function handleCsv(e){
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    const lines = ev.target.result.trim().split(/\r?\n/);
+    if(lines.length < 2) return;
+    const headers = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g,''));
+    const data = [];
+    for(let i=1;i<lines.length;i++){
+      const vals = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g,''));
+      if(vals.length !== headers.length) continue;
+      const row = {};
+      headers.forEach((h,j) => { row[h] = isNaN(Number(vals[j])) || vals[j]==='' ? vals[j] : Number(vals[j]); });
+      data.push(row);
+    }
+    custom = {title:f.name, columns:headers, data};
+    document.getElementById('csvPreview').classList.remove('hidden');
+    document.getElementById('csvTitle').textContent = f.name + ' (' + data.length + ' rows)';
+    document.getElementById('csvHead').innerHTML = '<tr>' + headers.map(h=>`<th class="px-2 py-1.5 text-left">${h}</th>`).join('') + '</tr>';
+    document.getElementById('csvBody').innerHTML = data.slice(0,20).map(r =>
+      '<tr>' + headers.map(h=>`<td class="px-2 py-1 mono">${r[h]}</td>`).join('') + '</tr>'
+    ).join('');
+  };
+  r.readAsText(f);
+}
+
+/* ============== INIT ============== */
+window.onload = () => {
+  renderGrid();
+  loadDataset('iris_sample');
+  renderToolMenu();
+  const firstBtn = document.querySelector('#toolkitNav .tool-btn');
+  selectTool('summarize1', firstBtn);
+};
+</script>
+</body>
+</html>
