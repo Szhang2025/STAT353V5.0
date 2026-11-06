@@ -384,7 +384,7 @@ function runSum1(){
         <div id="s1Hist" style="height:260px"></div>
         <div id="s1Box" style="height:260px"></div>
       </div>`;
-    plot('s1Hist',[{x:nums,type:'histogram',marker:{color:'#3b82f6'}}],{title:col});
+    plot('s1Hist',[{x:nums,type:'histogram',marker:{color:'#3b82f6', line:{color:'#ffffff', width:1}}}],{title:col});
     plot('s1Box',[{y:nums,type:'box',marker:{color:'#10b981'}}],{title:col});
   } else {
     const freq = {}; vals.forEach(v => freq[v]=(freq[v]||0)+1);
@@ -749,7 +749,7 @@ function runTTest(){
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p</div><div class="font-bold mono ${p<.05?'text-emerald-600':'text-amber-600'}">${p<1e-4?'<0.0001':p.toFixed(4)}</div></div>
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">95% CI</div><div class="font-bold mono">[${(m-tc*se).toFixed(3)}, ${(m+tc*se).toFixed(3)}]</div></div>
     </div>`;
-  plot('ttPlot', [{x:diffs, type:'histogram', marker:{color:'#8b5cf6'}}], {title:'Paired differences'});
+  plot('ttPlot', [{x:diffs, type:'histogram', marker:{color:'#8b5cf6', line:{color:'#ffffff', width:1}}}], {title:'Paired differences'});
 }
 
 /* ============== z_test ============== */
@@ -1574,7 +1574,7 @@ function runSim(){
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Observed mean</div><div class="font-bold mono">${(totH/reps).toFixed(2)}</div></div>
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">SD</div><div class="font-bold mono">${Math.sqrt(n*p*(1-p)).toFixed(2)}</div></div>
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Repetitions</div><div class="font-bold mono">${reps}</div></div>`;
-    trace = {x:out, type:'histogram', marker:{color:'#3b82f6'}};
+    trace = {x:out, type:'histogram', marker:{color:'#3b82f6', line:{color:'#ffffff', width:1}}};
     title = `Heads count (n=${n}, p=${p})`;
     footer = `E[Heads] = n·p = ${n}·${p} = ${(n*p).toFixed(1)} · SD = √(n·p·(1−p)) = ${Math.sqrt(n*p*(1-p)).toFixed(2)}`;
   }
@@ -1690,7 +1690,7 @@ function runSim(){
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">True effect</div><div class="font-bold mono">${eff}</div></div>
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">n</div><div class="font-bold mono">${n}</div></div>
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Repetitions</div><div class="font-bold mono">${reps}</div></div>`;
-    trace = {x:ps, type:'histogram', nbinsx:30, marker:{color:'#f59e0b'}};
+    trace = {x:ps, type:'histogram', nbinsx:30, marker:{color:'#f59e0b', line:{color:'#ffffff', width:1}}};
     title = 'Distribution of p-values';
     footer = eff === 0
       ? `Effect = 0 (H₀ true) → p-values uniform; rejection rate ≈ α = 0.05. Observed: ${(rej/reps).toFixed(3)}`
@@ -1711,7 +1711,7 @@ function runSim(){
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">p₀ / true p</div><div class="font-bold mono">${p0} / ${p}</div></div>
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">n</div><div class="font-bold mono">${n}</div></div>
       <div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-center"><div class="text-[11px] text-gray-500">Repetitions</div><div class="font-bold mono">${reps}</div></div>`;
-    trace = {x:ps, type:'histogram', nbinsx:30, marker:{color:'#6366f1'}};
+    trace = {x:ps, type:'histogram', nbinsx:30, marker:{color:'#f59e0b', line:{color:'#ffffff', width:1}}};
     title = 'Distribution of p-values (z-test)';
     footer = p === p0
       ? `p = p₀ (H₀ true) → p-values uniform; rejection rate ≈ α = 0.05. Observed: ${(rej/reps).toFixed(3)}`
